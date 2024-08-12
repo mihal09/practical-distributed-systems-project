@@ -1,11 +1,53 @@
 from pymongo import MongoClient, ASCENDING, DESCENDING
-import redis
+import aerospike
+
+AEROSPIKE_NAMESPACE = 'mimuw'
+AEROSPIKE_SET_NAME = 'tags'
+AEROSPIKE_HOSTS = ["st108vm102.rtb-lab.pl"]
+AEROSPIKE_PORT=3000
 
 
-def get_redis_client(host='localhost', port=6379, db=0, *args, **kwargs):
-    redis_client = redis.Redis(host=host, port=port, db=db, *args, **kwargs)
-    return redis_client
+class AerospikeClient:
+    def __init__(self, hosts=AEROSPIKE_HOSTS, port=AEROSPIKE_PORT, namespace=AEROSPIKE_NAMESPACE, set_name=AEROSPIKE_SET_NAME):
+        config = {
+            'hosts': [ (host, port) for host in hosts ],
+            'policies': {'read': {'total_timeout': 1000}},
+        }
+        self.client = aerospike.client(config)
+        self.namespace = namespace
+        self.set_name = set_name
 
+
+    def push_key_value(self, key, value, namespace=None, set_name=None):
+        if namespace is None:
+            namespace = self.namespace
+        if set_name is None:
+            set_name = self.set_name
+
+        try:
+            aerospike_key = (namespace, set_name, key)
+            
+            self.client.put(aerospike_key, {'value': value})
+            # print(f"Successfully written: {key} -> {value}")
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def read_key_value(self, key, namespace=None, set_name=None, default_factory=None):
+        if namespace is None:
+            namespace = self.namespace
+        if set_name is None:
+            set_name = self.set_name
+
+        try:
+            aerospike_key = (namespace, set_name, key)
+            
+            (key, metadata, record) = self.client.get(aerospike_key)
+            # print(f"Read: {key} -> {record['value']}")
+            return record['value']
+        except aerospike.exception.RecordNotFound:
+            if default_factory:
+                return default_factory()
+            return None
 
 def get_aggregate_collection(url="mongodb://localhost:27017/", clear_data=False, redis_client=None):
     # Connect to MongoDB

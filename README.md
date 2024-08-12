@@ -34,3 +34,8 @@ Additional info:
 - Make aerospike persistent, best to use a few files
 
 - Docker/registry/swarm for CI/CD
+
+Commands:
+```bash
+/opt/kafka/bin/kafka-topics.sh --create  --bootstrap-server localhost:9092 -partitions 2 --replication-factor 2 --topic user_tags
+```
