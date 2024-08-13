@@ -1,10 +1,14 @@
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import aerospike
+import json
+from kafka import KafkaProducer
 
 AEROSPIKE_NAMESPACE = 'mimuw'
 AEROSPIKE_SET_NAME = 'tags'
 AEROSPIKE_HOSTS = ["st108vm102.rtb-lab.pl"]
 AEROSPIKE_PORT=3000
+
+BOOTSTRAP_SERVERS = 'localhost:9092'
 
 
 class AerospikeClient:
@@ -48,6 +52,30 @@ class AerospikeClient:
             if default_factory:
                 return default_factory()
             return None
+
+
+def serializer(v):
+    return json.dumps(v).encode('utf-8')
+
+
+class KafkaClient():
+    def __init__(self, bootstrap_servers=BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=5000, serialzier=serializer, *args, **kwargs):
+        self.producer = KafkaProducer(
+            bootstrap_servers='localhost:9092',
+            compression_type=compression_type,
+            linger_ms=linger_ms,
+            key_serializer=serializer,
+            value_serializer=serializer,
+            *args, **kwargs
+        )
+
+    def send(self, topic, key=None, value=None):
+        self.producer.send(topic, key=key, value=value)
+        self.producer.flush()
+
+
+
+
 
 def get_aggregate_collection(url="mongodb://localhost:27017/", clear_data=False, redis_client=None):
     # Connect to MongoDB

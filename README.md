@@ -10,7 +10,7 @@
 2. Read data of user from database and apply time filtering
 
 3. Another component called "procesor" it uses kafka streams, it takes messages from kafka, and computes aggregate metrics and ocassionaly dumps into aerospike; \
-1 thread, At least once
+1 thread, At least once (in config processing.guarantee” to “exactly_once” )
 Every 15seconds dump aggregates to database \
 useful terms:
     - That can be achieved with a punctuator

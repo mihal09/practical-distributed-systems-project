@@ -6,7 +6,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 from classes import AggregatesQueryResult
-from connections import get_aggregate_collection, AerospikeClient
+from connections import get_aggregate_collection, AerospikeClient, KafkaClient
 from utils import is_within_time_range, parse_timestamp, remove_nones
 
 
@@ -38,6 +38,7 @@ def log_response_time(f):
 
 
 aerospike_client = AerospikeClient()
+kafka_client = KafkaClient()
 
 
 @app.route('/user_tags', methods=['POST'])
@@ -68,6 +69,8 @@ def add_user_tag():
         print(f"Pushed keys")
 
         # Send to kafka topic
+        # json.d
+        kafka_client.send(topic="user_tags", key=key, value=user_tag)
 
         # Mongodb
         # user_tag['time'] = parse_timestamp(user_tag['time'])

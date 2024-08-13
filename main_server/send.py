@@ -61,21 +61,21 @@ def get_user_tag(cookie, time_range, limit=200):
 
 if __name__ == "__main__":
     # Example usage
-    # time = datetime.utcnow().isoformat() + "Z"  # Format the current time in UTC with millisecond precision and 'Z' suffix
+    time = datetime.utcnow().isoformat() + "Z"  # Format the current time in UTC with millisecond precision and 'Z' suffix
+    cookie = "example_cookie2"
+    country = "US"
+    device = "PC"
+    action = "VIEW"
+    origin = "example_origin"
+    product_id = 123
+    brand_id = "brand456"
+    category_id = "category789"
+    price = 999
+
+    send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
+
     # cookie = "example_cookie"
-    # country = "US"
-    # device = "PC"
-    # action = "VIEW"
-    # origin = "example_origin"
-    # product_id = "product123"
-    # brand_id = "brand456"
-    # category_id = "category789"
-    # price = 999
+    # time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
+    # limit = 2
 
-    # send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
-
-    cookie = "example_cookie"
-    time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
-    limit = 2
-
-    get_user_tag(cookie, time_range, limit)
+    # get_user_tag(cookie, time_range, limit)

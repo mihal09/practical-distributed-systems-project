@@ -8,11 +8,8 @@ consumer = KafkaConsumer(
 )
 # consumer.isolation_level='read_committed'
 
-producer = KafkaProducer(
-    bootstrap_servers='localhost:9092'
-)
-for msg in consumer:
 
+for msg in consumer:
     print(f"got message {msg}")
     # account_number = msg.partition
     # if account_number in balance:
