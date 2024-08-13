@@ -2,6 +2,7 @@ package processor;
 
 import processor.domain.*;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,20 +60,33 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
             return;
         }
         
-        List<KeyValue<String, AggregatedMetrics>> result = new ArrayList<>();
-        
-        Action action = userTagEvent.getAction();
+
+        String action = userTagEvent.getAction().toString();
         String origin = userTagEvent.getOrigin();
         String brand_id = userTagEvent.getProductInfo().getBrandId();
         String categoryId = userTagEvent.getProductInfo().getCategoryId();
         int price = userTagEvent.getProductInfo().getPrice();
-        List<String> keys = generateAggregationKeys(action.toString(), origin, brand_id, categoryId);
+        Instant eventTime = userTagEvent.getTime();
+        long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
+        List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
         System.out.println("Keys: " + keys);
 
         for (String aggKey : keys) {
-            AggregatedMetrics metrics = new AggregatedMetrics(1, price);
-            result.add(new KeyValue<>(aggKey, metrics));
+            // AggregatedMetrics metrics = new AggregatedMetrics(1, price);
+            // result.add(new KeyValue<>(aggKey, metrics));
+
+            // String[] splitMessage = record.value().split("\\W+");
+            // String userId = splitMessage[0];
+            // int purchaseValue = Integer.parseInt(splitMessage[1]);
+
+            Long oldCount = countStore.get(aggKey);
+            long newCount = oldCount == null ? 1 : oldCount + 1;
+            countStore.put(aggKey, newCount);
+
+            Long oldSum = sumStore.get(aggKey);
+            long newSum = oldSum == null ? price : oldSum + price;
+            sumStore.put(aggKey, newSum);
         }
 
 
@@ -90,17 +104,18 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
     }
 
     
-    private static List<String> generateAggregationKeys(String action, String origin, String brandId, String categoryId) {
+    private static List<String> generateAggregationKeys(long windowStart, String action, String origin, String brandId, String categoryId) {
         List<String> keys = new ArrayList<>();
 
-        keys.add(action);
-        if (origin != null) keys.add(action + "|" + origin + "||");
-        if (brandId != null) keys.add(action + "||" + brandId + "|");
-        if (categoryId != null) keys.add(action + "|||" + categoryId);
-        if (origin != null && brandId != null) keys.add(action + "|" + origin + "|" + brandId + "|");
-        if (origin != null && categoryId != null) keys.add(action + "|" + origin + "||" + categoryId);
-        if (brandId != null && categoryId != null) keys.add(action + "||" + brandId + "|" + categoryId);
-        if (origin != null && brandId != null && categoryId != null) keys.add(action + "|" + origin + "|" + brandId + "|" + categoryId);
+        String baseKey = windowStart + "|" + action;
+        keys.add(baseKey);
+        if (origin != null) keys.add(baseKey + "|" + origin + "||");
+        if (brandId != null) keys.add(baseKey + "||" + brandId + "|");
+        if (categoryId != null) keys.add(baseKey + "|||" + categoryId);
+        if (origin != null && brandId != null) keys.add(baseKey + "|" + origin + "|" + brandId + "|");
+        if (origin != null && categoryId != null) keys.add(baseKey + "|" + origin + "||" + categoryId);
+        if (brandId != null && categoryId != null) keys.add(baseKey + "||" + brandId + "|" + categoryId);
+        if (origin != null && brandId != null && categoryId != null) keys.add(baseKey + "|" + origin + "|" + brandId + "|" + categoryId);
         return keys;
     }
 

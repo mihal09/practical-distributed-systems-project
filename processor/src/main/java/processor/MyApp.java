@@ -21,57 +21,6 @@ public class MyApp {
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
 
-        // StreamsBuilder builder = new StreamsBuilder();
-        // KStream<String, String> sourceStream = builder.stream(INPUT_TOPIC);
-
-        // ObjectMapper objectMapper = new ObjectMapper();
-
-        // // Generating all possible aggregation keys
-        // KStream<String, AggregatedMetrics> processedStream = sourceStream
-        //     .flatMap((key, value) -> {
-        //         List<KeyValue<String, AggregatedMetrics>> result = new ArrayList<>();
-        //         try {
-        //             JsonNode jsonNode = objectMapper.readTree(value);
-        //             String action = jsonNode.get("action").asText();
-        //             String origin = jsonNode.has("origin") ? jsonNode.get("origin").asText() : null;
-        //             String brandId = jsonNode.get("product_info").has("brand_id") ? jsonNode.get("product_info").get("brand_id").asText() : null;
-        //             String categoryId = jsonNode.get("product_info").has("category_id") ? jsonNode.get("product_info").get("category_id").asText() : null;
-        //             int price = jsonNode.get("product_info").get("price").asInt();
-
-        //             List<String> keys = generateAggregationKeys(action, origin, brandId, categoryId);
-
-        //             for (String aggKey : keys) {
-        //                 AggregatedMetrics metrics = new AggregatedMetrics(1, price);
-        //                 result.add(new KeyValue<>(aggKey, metrics));
-        //             }
-        //         } catch (Exception e) {
-        //             e.printStackTrace();
-        //         }
-        //         return result;
-        //     });
-
-        // KTable<Windowed<String>, AggregatedMetrics> aggregatedTable = processedStream
-        //     .groupByKey()
-        //     .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(1)))
-        //     .aggregate(
-        //         AggregatedMetrics::new,
-        //         (key, value, aggregate) -> {
-        //             aggregate.count += value.count;
-        //             aggregate.sumPrice += value.sumPrice;
-        //             return aggregate;
-        //         },
-        //         Materialized.<String, AggregatedMetrics, WindowStore<Bytes, byte[]>>as(STORE_NAME)
-        //             .withKeySerde(Serdes.String())
-        //             .withValueSerde(new AggregatedMetricsSerde())
-        //     );
-
-        // // Define punctuator to periodically dump data to Aerospike
-        // builder.addStateStore(Stores.keyValueStoreBuilder(
-        //     Stores.inMemoryKeyValueStore(STORE_NAME),
-        //     Serdes.String(),
-        //     new AggregatedMetricsSerde()
-        // ));
-
 
         StoreBuilder<KeyValueStore<String, Long>> countStoreBuilder = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore("purchases-count"),
