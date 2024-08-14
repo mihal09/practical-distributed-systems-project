@@ -11,7 +11,7 @@ from utils import is_within_time_range, parse_timestamp, remove_nones
 
 
 app = Flask(__name__)
-DEBUG = True
+DEBUG = False
 CLEAR_DATA = 0
 
 # Logging
@@ -58,7 +58,6 @@ def add_user_tag():
 
         # Aerospike
         tags = aerospike_client.read_key_value(key=key)
-        print(f"Tags={tags}")
         if not tags:
             tags = [user_tag]
         else:
@@ -66,24 +65,15 @@ def add_user_tag():
             tags = tags[:200]
 
         aerospike_client.push_key_value(key=key, value=tags)
-        print(f"Pushed keys")
 
         # Send to kafka topic
-        # json.d
         kafka_client.send(topic="user_tags", key=key, value=user_tag)
-
-        # Mongodb
-        # user_tag['time'] = parse_timestamp(user_tag['time'])
-        # product_info = user_tag.pop('product_info')
-        # user_tag.update(product_info)
-        # aggregates_collection.insert_one(user_tag)
-        # cutoff_time = user_tag['time'] - timedelta(hours=24)
-        # aggregates_collection.delete_many({"time": {"$lt": cutoff_time}})
 
         return '', 204  #
     except Exception as e:
         print(f'Got error: {e}')
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/user_profiles/<cookie>', methods=['POST'])
 def get_user_profile(cookie):
@@ -124,130 +114,99 @@ def get_user_profile(cookie):
 
     return jsonify(response)
 
-# @app.route('/aggregates', methods=['POST'])
-# @log_response_time
-# def get_aggregates():
-#     time_range = request.args.get('time_range')
-#     action = request.args.get('action')
-#     aggregates = request.args.getlist('aggregates')
-#     origin = request.args.get('origin', default=None)
-#     brand_id = request.args.get('brand_id', default=None)
-#     category_id = request.args.get('category_id', default=None)
 
-#     start_time_str, end_time_str = time_range.split('_')
-#     start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M:%S')
-#     end_time = datetime.strptime(end_time_str, '%Y-%m-%dT%H:%M:%S')
+@app.route('/aggregates', methods=['POST'])
+def get_aggregates():
+    time_range = request.args.get('time_range')
+    action = request.args.get('action')
+    aggregates = request.args.getlist('aggregates')
 
-#     match_stage = {
-#         '$match': {
-#             'time': {'$gte': start_time, '$lt': end_time},
-#             'action': action
-#         }
-#     }
-#     if origin:
-#         match_stage['$match']['origin'] = origin
-#     if brand_id:
-#         match_stage['$match']['brand_id'] = brand_id
-#     if category_id:
-#         match_stage['$match']['category_id'] = category_id
+    origin = request.args.get('origin', default=None)
+    brand_id = request.args.get('brand_id', default=None)
+    category_id = request.args.get('category_id', default=None)
 
-#     group_stage = {
-#         '$group': {
-#             '_id': {
-#                 '1m_bucket': {'$dateToString': {'format': '%Y-%m-%dT%H:%M:00', 'date': '$time', 'timezone': 'UTC'}},
-#                 'action': '$action',
-#                 'brand_id': '$brand_id' if brand_id else None,
-#                 'category_id': '$category_id' if category_id else None,
-#                 'origin': '$origin' if origin else None
-#             },
-#             'count': {'$sum': 1} if 'COUNT' in aggregates else None,
-#             'sum_price': {'$sum': '$price'} if 'SUM_PRICE' in aggregates else None
-#         }
-#     }
+    start_time_str, end_time_str = time_range.split('_')
+    start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M:%S')
+    end_time = datetime.strptime(end_time_str, '%Y-%m-%dT%H:%M:%S')
 
-#     group_stage['$group'] = remove_nones(group_stage['$group'])
-#     group_stage['$group']['_id'] = remove_nones(group_stage['$group']['_id'])
+    keys = generate_query_keys(start_time, end_time, action, origin, brand_id, category_id)
 
-#     project_stage = {
-#         '$project': {
-#             '_id': 0,
-#             '1m_bucket': '$_id.1m_bucket',
-#             'action': '$_id.action',
-#             'brand_id': '$_id.brand_id',
-#             'category_id': '$_id.category_id',
-#             'origin': '$_id.origin',
-#             'count': 1 if 'COUNT' in aggregates else None,
-#             'sum_price': 1 if 'SUM_PRICE' in aggregates else None
-#         }
-#     }
-#     project_stage['$project'] = remove_nones(project_stage['$project'])
+    results = []
 
-#     sort_stage = {
-#         '$sort': {'1m_bucket': 1}  # Sorting by '1m_bucket' in ascending order
-#     }
+    for key in keys:
+        try:
+            record = aerospike_client.read_key_value(set_name='aggregates', key=key) or {}
+            unix_timestamp = int(key.split('|')[0])  # 1m_bucket (epoch seconds)
+            dt = datetime.utcfromtimestamp(unix_timestamp)
+            bucket = dt.strftime('%Y-%m-%dT%H:%M:%S')
+            result_row = list(x for x in [bucket, action, origin, brand_id, category_id] if x is not None)
 
-#     # Execute aggregation pipeline
-#     pipeline = [match_stage, group_stage, project_stage, sort_stage]
-#     results = list(aggregates_collection.aggregate(pipeline))
+            if 'COUNT' in aggregates:
+                result_row.append(record.get('count', 0))
+            if 'SUM_PRICE' in aggregates:
+                result_row.append(record.get('sum_price', 0))
 
-#     target_output = ""
-#     data = request.get_json()
-#     if data:
-#         aggregates_result = AggregatesQueryResult(
-#             columns=data.get('columns', []),
-#             rows=data.get('rows', [])
-#         )
-#         target_output = aggregates_result.__dict__
+            results.append(result_row)
+        except aerospike_exception.RecordNotFound:
+            continue
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+   
+    # get results
+    target_output = ""
+    data = request.get_json()
+    if data:
+        aggregates_result = AggregatesQueryResult(
+            columns=data.get('columns', []),
+            rows=data.get('rows', [])
+        )
+        target_output = aggregates_result.__dict__
 
     
-#     key_columns = ['1m_bucket', 'action']
-#     if origin:
-#         key_columns.append('origin')
-#     if brand_id:
-#         key_columns.append('brand_id')
-#     if category_id:
-#         key_columns.append('category_id')
+    key_columns = ['1m_bucket', 'action']
+    if origin:
+        key_columns.append('origin')
+    if brand_id:
+        key_columns.append('brand_id')
+    if category_id:
+        key_columns.append('category_id')
         
-#     agg_columns = []
-#     if 'COUNT' in aggregates:
-#         agg_columns.append('count')
-#     if 'SUM_PRICE' in aggregates:
-#         agg_columns.append('sum_price')
-
-#     results_dict = {}
-#     for item in results:
-#         key = tuple(str(item[col]) for col in key_columns if item[col] is not None)
-#         vals = [str(item[col]) if item[col] is not None else None for col in agg_columns]
-#         results_dict[key] = vals
-
-#     total_minutes = int((end_time - start_time).total_seconds() / 60)
-#     all_minutes = [start_time + timedelta(minutes=i) for i in range(total_minutes)]
-
-#     rows = []
-#     for minute in all_minutes:
-#         bucket = minute.strftime('%Y-%m-%dT%H:%M:00')
-#         key = tuple(x for x in [bucket, action, origin, brand_id, category_id] if x is not None)
-
-#         if key in results_dict:
-#             vals = results_dict.get(key)
-#         else:
-#             vals = ['0' for _ in agg_columns]
-
-#         rows.append(list(key) + vals)
+    agg_columns = []
+    if 'COUNT' in aggregates:
+        agg_columns.append('count')
+    if 'SUM_PRICE' in aggregates:
+        agg_columns.append('sum_price')
 
 
-#     final_results = {
-#         'columns': key_columns+agg_columns,
-#         'rows': rows
-#     }   
+    final_results = {
+        'columns': key_columns+agg_columns,
+        'rows': results
+    }   
 
-#     print(f'Time range: {start_time} - {end_time}')
-#     print(f'Expected result\n{target_output}\ngot\n{final_results}\n\n')
+    # print(f'Time range: {start_time} - {end_time}')
+    print(f'Expected result\n{target_output}\ngot\n{final_results}\n\n')
 
-#     assert target_output == final_results, time_range
+    # assert target_output == final_results, time_range
+
+    return jsonify(final_results)
 
 
-#     return jsonify(final_results)
+def generate_query_keys(start_time, end_time, action, origin=None, brand_id=None, category_id=None):
+    if origin is None:
+        origin = ""
+    if brand_id is None:
+        brand_id = ""
+    if category_id is None:
+        category_id = ""
+
+    keys = []
+    time_cursor = start_time
+    while time_cursor <= end_time:
+        key = f"{int(time_cursor.timestamp())}|{action}|{origin}|{brand_id}|{category_id}"
+        keys.append(key)
+        time_cursor += timedelta(minutes=1)
+    return keys
 
 
 @app.route('/test', methods=['GET'])

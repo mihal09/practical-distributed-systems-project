@@ -53,6 +53,7 @@ public class MyApp {
         });
 
         try {
+            // streams.cleanUp();
             streams.start();
             latch.await();
         } catch (Throwable e) {

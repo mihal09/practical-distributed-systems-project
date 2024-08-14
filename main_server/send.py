@@ -51,8 +51,34 @@ def get_user_tag(cookie, time_range, limit=200):
     response = requests.post(url, headers=headers, params=params, data=json.dumps(params))
 
     # Check the response status
-    if response.status_code == 204:
+    if response.status_code == 200:
         print("User profile retrieved succesfully.")
+        print(response.text)
+    else:
+        print(f"Error: Received status code {response.status_code}")
+        print(response.text)
+
+
+def get_aggregates(time_range, action="VIEW", limit=200):
+    url = f"http://localhost:5000/aggregates"
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    params = {
+        'time_range': time_range,
+        'action': action,
+        'aggregates': ["COUNT", "SUM_PRICE"],
+        'brand_id': "brand456"
+    }
+
+
+    # Send the POST request
+    response = requests.post(url, headers=headers, params=params, data=json.dumps(params))
+
+    # Check the response status
+    if response.status_code == 204:
+        print("Aggregates read succesfully.")
         print(response.text)
     else:
         print(f"Error: Received status code {response.status_code}")
@@ -61,8 +87,9 @@ def get_user_tag(cookie, time_range, limit=200):
 
 if __name__ == "__main__":
     # Example usage
-    time = datetime.utcnow().isoformat() + "Z"  # Format the current time in UTC with millisecond precision and 'Z' suffix
-    cookie = "example_cookie2"
+    # time = datetime.utcnow().isoformat() + "Z"  # Format the current time in UTC with millisecond precision and 'Z' suffix
+    time = "2024-08-12T18:30:00.000Z"
+    cookie = "test_cookie2"
     country = "US"
     device = "PC"
     action = "VIEW"
@@ -70,12 +97,14 @@ if __name__ == "__main__":
     product_id = 123
     brand_id = "brand456"
     category_id = "category789"
-    price = 999
+    price = 10
 
-    send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
+    # send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
 
-    # cookie = "example_cookie"
-    # time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
-    # limit = 2
+    time_range = "2024-08-12T18:30:00_2024-08-12T18:31:00"
+    # get_aggregates(time_range)
 
-    # get_user_tag(cookie, time_range, limit)
+    cookie = "test_cookie2"
+    time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
+    limit = 2
+    get_user_tag(cookie, time_range, limit)

@@ -19,6 +19,10 @@ import org.apache.kafka.streams.state.KeyValueStore;
 
 
 public class PurchaseProcessor implements Processor<String, String, String, String> {
+    private static final String COUNT_STORE_NAME = "purchases-count";
+    private static final String SUM_STORE_NAME = "purchases-sum";
+    private static final Duration SCHEDULE_INTERVAL = Duration.ofSeconds(15);
+
     private KeyValueStore<String, Long> countStore;
     private KeyValueStore<String, Long> sumStore;
     private DatabaseMock database;
@@ -27,10 +31,10 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
     @Override
     public void init(ProcessorContext<String, String> context) {
         objectMapper.registerModule(new JavaTimeModule());
-        countStore = context.getStateStore("purchases-count");  // TODO: have only one store storing a class AggregatedMetrics
-        sumStore = context.getStateStore("purchases-sum");
+        countStore = context.getStateStore(COUNT_STORE_NAME);  // TODO: have only one store storing a class AggregatedMetrics
+        sumStore = context.getStateStore(SUM_STORE_NAME);
         database = new DatabaseMock();
-        context.schedule(Duration.ofSeconds(15), PunctuationType.WALL_CLOCK_TIME, timestamp -> {
+        context.schedule(SCHEDULE_INTERVAL, PunctuationType.WALL_CLOCK_TIME, timestamp -> {
             List<DatabaseMock.UserProfile> profiles = new ArrayList<>();
             try (final KeyValueIterator<String, Long> iter = countStore.all()) {
                 while (iter.hasNext()) {
@@ -39,6 +43,9 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     Long count = entry.value;
                     Long sum = sumStore.get(key);
                     profiles.add(new DatabaseMock.UserProfile(key, count, sum));
+
+                    countStore.put(key, null);
+                    sumStore.put(key, null);
                 }
             }
             database.batchUpdate(profiles);
@@ -47,60 +54,42 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
 
     @Override
     public void process(Record<String, String> record) {
-        System.out.println("Processing record " + record.toString());
+        // System.out.println("Processing record " + record.toString());
         UserTagEvent userTagEvent;
         try {
             userTagEvent = objectMapper.readValue(record.value(), UserTagEvent.class);
-            // Now you can work with userTagEvent object
-            // System.out.println("Deserialized UserTagEvent: " + userTagEvent);
-            System.out.println("Deserialized tag, product id: " + userTagEvent.getProductInfo().getProductId());
+            // System.out.println("Deserialized tag, product id: " + userTagEvent.getProductInfo().getProductId());
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Failed to deserialize record value: " + record.value());
             return;
         }
         
+        try {
+            String action = userTagEvent.getAction().toString();
+            String origin = userTagEvent.getOrigin();
+            String brand_id = userTagEvent.getProductInfo().getBrandId();
+            String categoryId = userTagEvent.getProductInfo().getCategoryId();
+            int price = userTagEvent.getProductInfo().getPrice();
+            Instant eventTime = userTagEvent.getTime();
+            long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
+            List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
-        String action = userTagEvent.getAction().toString();
-        String origin = userTagEvent.getOrigin();
-        String brand_id = userTagEvent.getProductInfo().getBrandId();
-        String categoryId = userTagEvent.getProductInfo().getCategoryId();
-        int price = userTagEvent.getProductInfo().getPrice();
-        Instant eventTime = userTagEvent.getTime();
-        long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
-        List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
+            // System.out.println("Keys: " + keys);
 
-        System.out.println("Keys: " + keys);
+            for (String aggKey : keys) {
+                Long oldCount = countStore.get(aggKey);
+                long newCount = oldCount == null ? 1 : oldCount + 1;
+                countStore.put(aggKey, newCount);
 
-        for (String aggKey : keys) {
-            // AggregatedMetrics metrics = new AggregatedMetrics(1, price);
-            // result.add(new KeyValue<>(aggKey, metrics));
-
-            // String[] splitMessage = record.value().split("\\W+");
-            // String userId = splitMessage[0];
-            // int purchaseValue = Integer.parseInt(splitMessage[1]);
-
-            Long oldCount = countStore.get(aggKey);
-            long newCount = oldCount == null ? 1 : oldCount + 1;
-            countStore.put(aggKey, newCount);
-
-            Long oldSum = sumStore.get(aggKey);
-            long newSum = oldSum == null ? price : oldSum + price;
-            sumStore.put(aggKey, newSum);
+                Long oldSum = sumStore.get(aggKey);
+                long newSum = oldSum == null ? price : oldSum + price;
+                sumStore.put(aggKey, newSum);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Failed to process record: " + record.value());
         }
-
-
-        // String[] splitMessage = record.value().split("\\W+");
-        // String userId = splitMessage[0];
-        // int purchaseValue = Integer.parseInt(splitMessage[1]);
-
-        // Long oldCount = countStore.get(userId);
-        // long newCount = oldCount == null ? 1 : oldCount + 1;
-        // countStore.put(userId, newCount);
-
-        // Long oldSum = sumStore.get(userId);
-        // long newSum = oldSum == null ? purchaseValue : oldSum + purchaseValue;
-        // sumStore.put(userId, newSum);
     }
 
     

@@ -1,11 +1,12 @@
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import aerospike
+from aerospike import exception as ex
 import json
 from kafka import KafkaProducer
 
 AEROSPIKE_NAMESPACE = 'mimuw'
 AEROSPIKE_SET_NAME = 'tags'
-AEROSPIKE_HOSTS = ["st108vm102.rtb-lab.pl"]
+AEROSPIKE_HOSTS = ["st108vm105.rtb-lab.pl"]
 AEROSPIKE_PORT=3000
 
 BOOTSTRAP_SERVERS = 'localhost:9092'
@@ -46,12 +47,33 @@ class AerospikeClient:
             aerospike_key = (namespace, set_name, key)
             
             (key, metadata, record) = self.client.get(aerospike_key)
-            # print(f"Read: {key} -> {record['value']}")
-            return record['value']
+            # print(f"Read: {key} -> {record}")
+            if len(record) == 1 and 'value' in record:
+                return record['value']
+            else:
+                return record
         except aerospike.exception.RecordNotFound:
             if default_factory:
                 return default_factory()
             return None
+
+    def clear_setname(self, namespace=None, set_name=None):
+        if namespace is None:
+            namespace = self.namespace
+
+        if set_name is None:
+            set_name = self.set_name
+
+        scan = self.client.scan(namespace, set_name)
+        keys = []
+
+        scan.foreach(lambda x: keys.append(x[0]))
+
+        for key in keys:
+            try:
+                self.client.remove(key)
+            except ex.RecordError as e:
+                print(f"Failed to delete record with key {key}: {e}")
 
 
 def serializer(v):

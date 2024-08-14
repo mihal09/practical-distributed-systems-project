@@ -36,6 +36,14 @@ Additional info:
 - Docker/registry/swarm for CI/CD
 
 Commands:
+
+- Create/edelete kafka topic for events
 ```bash
-/opt/kafka/bin/kafka-topics.sh --create  --bootstrap-server localhost:9092 -partitions 2 --replication-factor 2 --topic user_tags
+/opt/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 -partitions 2 --replication-factor 2 --topic user_tags
+/opt/kafka/bin/kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic user_tags 
+```
+
+To clear data, one needs to shutdown the processor server and run:
+```bash
+bash clear_all.sh
 ```

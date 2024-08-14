@@ -167,6 +167,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.aerospike</groupId>
+            <artifactId>aerospike-client</artifactId>
+            <version>7.0.0</version>
+        </dependency>
+
         <!-- Apache Kafka dependencies -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
