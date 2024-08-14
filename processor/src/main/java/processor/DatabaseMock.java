@@ -47,16 +47,20 @@ public class DatabaseMock {
         List<BatchRecord> batchWrites = new ArrayList<>();
 
         profiles.forEach(profile -> {
+            // System.out.println("Processing key" + profile.key.toString());
             UserProfile existingProfile = userProfileMap.getOrDefault(profile.key, new UserProfile(profile.key, 0L, 0L));
+            // System.out.println("Old values:" + existingProfile.count + ", " + existingProfile.sum);
             existingProfile.count += profile.count;
             existingProfile.sum += profile.sum;
             userProfileMap.put(profile.key, existingProfile);
+            // System.out.println("New values:" + existingProfile.count + ", " + existingProfile.sum);
+            // System.out.println();
 
             Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, profile.key);
             Bin countBin = new Bin("count", Value.get(existingProfile.count));
             Bin sumPriceBin = new Bin("sum_price", Value.get(existingProfile.sum));
             Operation[] operations = Operation.array(
-                Operation.add(countBin),
+                Operation.put(countBin),
                 Operation.put(sumPriceBin)
             );
 

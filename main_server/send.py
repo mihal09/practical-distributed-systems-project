@@ -90,8 +90,8 @@ def get_aggregates(time_range, action="VIEW", limit=200):
 if __name__ == "__main__":
     # Example usage
     # time = datetime.utcnow().isoformat() + "Z"  # Format the current time in UTC with millisecond precision and 'Z' suffix
-    time = "2024-08-12T18:30:00.000Z"
-    cookie = "test_cookie2"
+    time = "2024-08-12T18:39:00.000Z"
+    cookie = "new_cookie"
     country = "US"
     device = "PC"
     action = "VIEW"

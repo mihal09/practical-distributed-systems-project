@@ -44,6 +44,8 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     Long sum = sumStore.get(key);
                     profiles.add(new DatabaseMock.UserProfile(key, count, sum));
 
+                    System.out.println("Saving profile:" + key.toString() + ", " + count + ", " + sum);
+
                     countStore.put(key, null);
                     sumStore.put(key, null);
                 }
