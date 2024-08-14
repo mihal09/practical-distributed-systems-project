@@ -8,7 +8,7 @@ AEROSPIKE_SET_NAME = 'tags'
 AEROSPIKE_HOSTS = [f"st108vm1{x:02d}.rtb-lab.pl" for x in range(6, 10+1)]
 AEROSPIKE_PORT=3000
 
-KAFKA_BOOTSTRAP_SERVERS = 'st108vm102.rtb-lab.pl:9092'
+KAFKA_BOOTSTRAP_SERVERS = 'st108vm101.rtb-lab.pl:9092'
 
 
 class AerospikeClient:
