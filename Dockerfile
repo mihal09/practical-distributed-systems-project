@@ -11,4 +11,4 @@ COPY ["src/", "/opt/app_server"]
 
 WORKDIR "/opt/app_server"
 
-ENTRYPOINT ["flask", "--app", "main", "run"]
+ENTRYPOINT ["flask", "--app", "server", "run", "-h", "0.0.0.0", "-p", "5000"]

@@ -1,0 +1,15 @@
+services:
+  front:
+    image: server-py:latest
+    ports:
+      - "5000:5000"
+    deploy:
+      mode: replicated
+      replicas: 2
+  haproxy:
+    image: haproxy:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./cfg/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
