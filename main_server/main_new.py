@@ -6,7 +6,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 from classes import AggregatesQueryResult
-from connections import get_aggregate_collection, AerospikeClient, KafkaClient
+from connections import AerospikeClient, KafkaClient
 from utils import is_within_time_range, parse_timestamp, remove_nones
 
 
@@ -207,13 +207,6 @@ def generate_query_keys(start_time, end_time, action, origin=None, brand_id=None
         keys.append(key)
         time_cursor += timedelta(minutes=1)
     return keys
-
-
-@app.route('/test', methods=['GET'])
-def test():
-    # Here you would handle the user tag
-    print(f"Testing.")
-    return '', 204
 
 
 if __name__ == '__main__':

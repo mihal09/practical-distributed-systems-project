@@ -1,4 +1,3 @@
-from pymongo import MongoClient, ASCENDING, DESCENDING
 import aerospike
 from aerospike import exception as ex
 import json
@@ -6,10 +5,10 @@ from kafka import KafkaProducer
 
 AEROSPIKE_NAMESPACE = 'mimuw'
 AEROSPIKE_SET_NAME = 'tags'
-AEROSPIKE_HOSTS = ["st108vm105.rtb-lab.pl"]
+AEROSPIKE_HOSTS = [f"st108vm1{x:02d}.rtb-lab.pl" for x in range(6, 10+1)]
 AEROSPIKE_PORT=3000
 
-BOOTSTRAP_SERVERS = 'localhost:9092'
+KAFKA_BOOTSTRAP_SERVERS = 'st108vm102.rtb-lab.pl:9092'
 
 
 class AerospikeClient:
@@ -81,9 +80,9 @@ def serializer(v):
 
 
 class KafkaClient():
-    def __init__(self, bootstrap_servers=BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=5000, serialzier=serializer, *args, **kwargs):
+    def __init__(self, bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=5000, serialzier=serializer, *args, **kwargs):
         self.producer = KafkaProducer(
-            bootstrap_servers='localhost:9092',
+            bootstrap_servers=bootstrap_servers,
             compression_type=compression_type,
             linger_ms=linger_ms,
             key_serializer=serializer,
@@ -94,45 +93,3 @@ class KafkaClient():
     def send(self, topic, key=None, value=None):
         self.producer.send(topic, key=key, value=value)
         self.producer.flush()
-
-
-
-
-
-def get_aggregate_collection(url="mongodb://localhost:27017/", clear_data=False, redis_client=None):
-    # Connect to MongoDB
-    mongo_client = MongoClient(url)
-    db = mongo_client['allezon']
-    aggregates_collection = db["aggregate_collection"]
-
-    if clear_data:
-        print('Clearing data!')
-        aggregates_collection.drop()  # Clear mongo
-        for key in redis_client.scan_iter("*"):  # Clear redis
-            redis_client.delete(key)
-        print('Cleared data!')
-
-
-    if 'aggregate_collection' not in db.list_collection_names():
-        # Create the collection
-        agg_col = db.create_collection('aggregate_collection')
-
-        # Create indexes for optimizing queries
-        # Indexing time and action fields for faster retrieval based on common query patterns
-        agg_col.create_index([("time", DESCENDING), ("action", ASCENDING)])
-        agg_col.create_index([("time", DESCENDING), ("action", ASCENDING), ("brand_id", ASCENDING)])
-        agg_col.create_index([("time", DESCENDING), ("action", ASCENDING), ("category_id", ASCENDING)])
-        agg_col.create_index([("time", DESCENDING), ("action", ASCENDING), ("origin", ASCENDING)])
-
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("brand_id", ASCENDING), ("category_id", ASCENDING), ("origin", ASCENDING)])
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("brand_id", ASCENDING), ("origin", ASCENDING), ("category_id", ASCENDING)])
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("category_id", ASCENDING), ("brand_id", ASCENDING), ("origin", ASCENDING)])
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("category_id", ASCENDING), ("origin", ASCENDING), ("brand_id", ASCENDING)])
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("origin", ASCENDING), ("brand_id", ASCENDING), ("category_id", ASCENDING)])
-        # agg_col.create_index([("time", ASCENDING), ("action", ASCENDING), ("origin", ASCENDING), ("category_id", ASCENDING), ("brand_id", ASCENDING)])
-
-        print("Aggregate collection created and indexed.")
-    else:
-        print("Aggregate collection already exists.")
-
-    return aggregates_collection
