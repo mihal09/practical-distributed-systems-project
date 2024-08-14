@@ -173,7 +173,7 @@ def get_aggregates():
     # print(f'Time range: {start_time} - {end_time}')
     # print(f'Expected result\n{target_output}\ngot\n{final_results}\n\n')
 
-    assert target_output == final_results, time_range, f'Expected result\n{target_output}\ngot\n{final_results}\n\n'
+    assert target_output == final_results, f'Expected result\n{target_output}\ngot\n{final_results}\n\n'
 
     return jsonify(final_results)
 
