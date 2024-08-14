@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import time
 import logging
@@ -7,12 +7,12 @@ from logging.handlers import RotatingFileHandler
 
 from classes import AggregatesQueryResult
 from connections import AerospikeClient, KafkaClient
-from utils import is_within_time_range, parse_timestamp, remove_nones
+from utils import is_within_time_range, parse_timestamp, remove_nones, generate_query_keys
 
 
 app = Flask(__name__)
 DEBUG = False
-CLEAR_DATA = 0
+# CLEAR_DATA = 0
 
 # Logging
 log = logging.getLogger('werkzeug')
@@ -22,19 +22,6 @@ handler = RotatingFileHandler('logs.txt', maxBytes=10000, backupCount=3)
 handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
-
-
-def log_response_time(f):
-    """Decorator to log the response time of a function."""
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = f(*args, **kwargs)
-        end_time = time.time()
-        duration = end_time - start_time
-        app.logger.info(f"{request.path} took {duration:.4f} seconds")
-        return result
-    return wrapper
-
 
 
 aerospike_client = AerospikeClient()
@@ -190,23 +177,6 @@ def get_aggregates():
     # assert target_output == final_results, time_range
 
     return jsonify(final_results)
-
-
-def generate_query_keys(start_time, end_time, action, origin=None, brand_id=None, category_id=None):
-    if origin is None:
-        origin = ""
-    if brand_id is None:
-        brand_id = ""
-    if category_id is None:
-        category_id = ""
-
-    keys = []
-    time_cursor = start_time
-    while time_cursor <= end_time:
-        key = f"{int(time_cursor.timestamp())}|{action}|{origin}|{brand_id}|{category_id}"
-        keys.append(key)
-        time_cursor += timedelta(minutes=1)
-    return keys
 
 
 if __name__ == '__main__':
