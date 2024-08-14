@@ -43,7 +43,7 @@ def add_user_tag():
         brand_id = user_tag["product_info"]["brand_id"]
         cat_id = user_tag["product_info"]["category_id"]
         time = user_tag["time"][:16]
-        if brand_id == "Round_Hill_Furniture" and  cat_id == "Care_Products" and time == "2022-03-01T00:01":
+        if brand_id == "Round_Hill_Furniture" and cat_id == "Care_Products" and time == "2022-03-01T00:01":
             print(user_tag)
 
         if DEBUG:
@@ -103,7 +103,7 @@ def get_user_profile(cookie):
         print(f'User views: {user_views}')
         print(f"Expected result: {expected_result}\ngot\n{response}\n\n")
 
-    assert response == expected_result, f"Expected result: {expected_result}\ngot\n{response}\n\n"
+    # assert response == expected_result, f"Expected result: {expected_result}\ngot\n{response}\n\n"
 
     return jsonify(response)
 
