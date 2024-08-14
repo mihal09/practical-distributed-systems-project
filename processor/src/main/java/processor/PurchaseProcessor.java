@@ -26,13 +26,12 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PurchaseProcessor implements Processor<String, String, String, String> {
     private static final String COUNT_STORE_NAME = "purchases-count";
     private static final String SUM_STORE_NAME = "purchases-sum";
-    private static final Duration SCHEDULE_INTERVAL = Duration.ofSeconds(30);
+    private static final Duration SCHEDULE_INTERVAL = Duration.ofSeconds(15);
 
     private static KeyValueStore<String, Long> countStore;
     private static KeyValueStore<String, Long> sumStore;
     private static DatabaseMock database;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    // private AtomicLong lastExecutionTime = new AtomicLong(0);
     private static boolean isInitialized = false;
 
     @Override
@@ -47,14 +46,6 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
 
             System.out.println("INITIALIZING PROCESSOR");
             context.schedule(SCHEDULE_INTERVAL, PunctuationType.WALL_CLOCK_TIME, timestamp -> {
-                // long currentTime = System.currentTimeMillis();
-                // long lastExecution = lastExecutionTime.get();
-                // Skip execution if it's too close to the last one
-                // if (currentTime - lastExecution < SCHEDULE_INTERVAL.toMillis()) {
-                //     return;
-                // }
-                // lastExecutionTime.set(currentTime);
-                
                 List<DatabaseMock.UserProfile> profiles = new ArrayList<>();
                 LocalDateTime now = LocalDateTime.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
@@ -69,7 +60,7 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                         Long count = entry.value;
                         Long sum = sumStore.get(key);
                         sumStore.put(key, null);
-                        
+
                         profiles.add(new DatabaseMock.UserProfile(key, count, sum));
 
                         // System.out.println("Saving profile:" + key.toString() + ", " + count + ", " + sum);
@@ -107,9 +98,9 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
             long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
             List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
-            if (brand_id.equals("Round_Hill_Furniture") && categoryId.equals("Care_Products")){
-                System.out.println("Keys: " + keys);
-            }
+            // if (brand_id.equals("Round_Hill_Furniture") && categoryId.equals("Care_Products")){
+            //     System.out.println("Keys: " + keys);
+            // }
 
             // System.out.println("Keys: " + keys);
 
@@ -118,8 +109,7 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     LocalDateTime now = LocalDateTime.now();
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
                     String formattedNow = now.format(formatter);
-                    // AtomicLong count = new AtomicLong(countStore.get(aggKey) == null ? 0 : countStore.get(aggKey));
-                    // long newCount = count.incrementAndGet();
+
                     Long oldCount = countStore.get(aggKey);
                     long newCount = oldCount == null ? 1 : oldCount + 1;
                     countStore.put(aggKey, newCount);
