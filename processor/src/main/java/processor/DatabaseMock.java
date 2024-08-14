@@ -49,12 +49,21 @@ public class DatabaseMock {
         profiles.forEach(profile -> {
             // System.out.println("Processing key" + profile.key.toString());
             UserProfile existingProfile = userProfileMap.getOrDefault(profile.key, new UserProfile(profile.key, 0L, 0L));
+            if (profile.key.equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
+                System.out.println("Old values:" + existingProfile.count + ", " + existingProfile.sum);
+            }
+
             // System.out.println("Old values:" + existingProfile.count + ", " + existingProfile.sum);
             existingProfile.count += profile.count;
             existingProfile.sum += profile.sum;
             userProfileMap.put(profile.key, existingProfile);
             // System.out.println("New values:" + existingProfile.count + ", " + existingProfile.sum);
             // System.out.println();
+
+            if (profile.key.equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
+                System.out.println("New values:" + existingProfile.count + ", " + existingProfile.sum);
+                System.out.println();
+            }
 
             Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, profile.key);
             Bin countBin = new Bin("count", Value.get(existingProfile.count));
