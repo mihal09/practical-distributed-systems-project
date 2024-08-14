@@ -118,6 +118,10 @@ def get_aggregates():
 
     keys = generate_query_keys(start_time, end_time, action, origin, brand_id, category_id)
 
+    print(time_range)
+    print(keys)
+    print()
+
     results = []
 
     for key in keys:
