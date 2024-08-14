@@ -77,6 +77,9 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
             long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
             List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
+            if brand_id == "Round_Hill_Furniture" && categoryId == "Care_Products":
+                System.out.println("Keys: " + keys);
+
             // System.out.println("Keys: " + keys);
 
             for (String aggKey : keys) {
