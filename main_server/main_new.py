@@ -40,7 +40,10 @@ def add_user_tag():
         key = f'{cookie}:{action.lower()}'
 
         # Store user tag in Aerospike list and trim the list to the most recent 200 items
-        if user_tag["product_info"]["brand_id"] == "Round_Hill_Furniture" or user_tag["product_info"]["category_id"] == "Care_Products":
+        brand_id = user_tag["product_info"]["brand_id"]
+        cat_id = user_tag["product_info"]["category_id"]
+        time = user_tag["time"][:16]
+        if brand_id == "Round_Hill_Furniture" and  cat_id == "Care_Products" and time == "2022-03-01T00:01":
             print(user_tag)
 
         if DEBUG:
