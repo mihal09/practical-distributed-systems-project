@@ -24,7 +24,7 @@ import java.util.HashMap;
 public class DatabaseMock {
     private static final String AEROSPIKE_NAMESPACE = "mimuw";
     private static final String AEROSPIKE_SET_NAME = "aggregates";
-    private static final String AEROSPIKE_HOST = "st108vm105.rtb-lab.pl";
+    private static final String AEROSPIKE_HOST = "st108vm106.rtb-lab.pl";
     private static final int AEROSPIKE_PORT = 3000;
 
     private final AerospikeClient client;

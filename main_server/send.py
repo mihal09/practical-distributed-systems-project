@@ -2,8 +2,10 @@ import requests
 import json
 from datetime import datetime
 
+base_url = "http://st108vm105.rtb-lab.pl"
+
 def send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price):
-    url = "http://localhost:5000/user_tags"
+    url = f"{base_url}:5000/user_tags"
     headers = {
         "Content-Type": "application/json"
     }
@@ -36,7 +38,7 @@ def send_user_tag(time, cookie, country, device, action, origin, product_id, bra
 
 
 def get_user_tag(cookie, time_range, limit=200):
-    url = f"http://localhost:5000/user_profiles/{cookie}"
+    url = f"{base_url}:5000/user_profiles/{cookie}"
     headers = {
         "Content-Type": "application/json"
     }
@@ -60,7 +62,7 @@ def get_user_tag(cookie, time_range, limit=200):
 
 
 def get_aggregates(time_range, action="VIEW", limit=200):
-    url = f"http://localhost:5000/aggregates"
+    url = f"{base_url}:5000/aggregates"
     headers = {
         "Content-Type": "application/json"
     }
@@ -99,12 +101,12 @@ if __name__ == "__main__":
     category_id = "category789"
     price = 10
 
-    # send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
+    send_user_tag(time, cookie, country, device, action, origin, product_id, brand_id, category_id, price)
 
     time_range = "2024-08-12T18:30:00_2024-08-12T18:31:00"
     # get_aggregates(time_range)
 
-    cookie = "test_cookie2"
-    time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
-    limit = 2
-    get_user_tag(cookie, time_range, limit)
+    # cookie = "test_cookie2"
+    # time_range = "2024-08-12T18:30:00.000_2024-08-12T23:30:00.000"
+    # limit = 2
+    # get_user_tag(cookie, time_range, limit)
