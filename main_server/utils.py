@@ -30,7 +30,7 @@ def generate_query_keys(start_time, end_time, action, origin=None, brand_id=None
 
     keys = []
     time_cursor = start_time
-    while time_cursor <= end_time:
+    while time_cursor < end_time:
         key = f"{int(time_cursor.timestamp())}|{action}|{origin}|{brand_id}|{category_id}"
         keys.append(key)
         time_cursor += timedelta(minutes=1)
