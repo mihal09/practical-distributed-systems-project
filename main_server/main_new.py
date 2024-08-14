@@ -110,7 +110,7 @@ def get_user_profile(cookie):
         print(f'User views: {user_views}')
         print(f"Expected result: {expected_result}\ngot\n{response}\n\n")
 
-    # assert response == expected_result
+    assert response == expected_result, f"Expected result: {expected_result}\ngot\n{response}\n\n"
 
     return jsonify(response)
 
