@@ -139,9 +139,9 @@ def get_aggregates():
             result_row = list(x for x in [bucket, action, origin, brand_id, category_id] if x is not None)
 
             if 'COUNT' in aggregates:
-                result_row.append(record.get('count', 0))
+                result_row.append(str(record.get('count', 0)))
             if 'SUM_PRICE' in aggregates:
-                result_row.append(record.get('sum_price', 0))
+                result_row.append(str(record.get('sum_price', 0)))
 
             results.append(result_row)
         except aerospike_exception.RecordNotFound:

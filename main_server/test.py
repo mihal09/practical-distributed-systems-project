@@ -14,7 +14,7 @@ if __name__ == "__main__":
     # brand_id = "brand456"
     # category_id = "category789"
     price = 999
-    key = "1723487940|VIEW"
+    key = "1646092860|VIEW||Round_Hill_Furniture|Care_Products"
 
     value = client.read_key_value(key, set_name="aggregates")
     print(f"Got value: {value}")
