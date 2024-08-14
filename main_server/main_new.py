@@ -40,12 +40,6 @@ def add_user_tag():
         key = f'{cookie}:{action.lower()}'
 
         # Store user tag in Aerospike list and trim the list to the most recent 200 items
-        brand_id = user_tag["product_info"]["brand_id"]
-        cat_id = user_tag["product_info"]["category_id"]
-        time = user_tag["time"][:16]
-        if brand_id == "Round_Hill_Furniture" and cat_id == "Care_Products" and time == "2022-03-01T00:01":
-            print(user_tag)
-
         if DEBUG:
             print(f'[AEROSPIKE] Setting key = {key}')
 
@@ -123,11 +117,6 @@ def get_aggregates():
     end_time = datetime.strptime(end_time_str, '%Y-%m-%dT%H:%M:%S')
 
     keys = generate_query_keys(start_time, end_time, action, origin, brand_id, category_id)
-
-    print(time_range)
-    print(keys)
-    print()
-
     results = []
 
     for key in keys:
@@ -182,9 +171,9 @@ def get_aggregates():
     }   
 
     # print(f'Time range: {start_time} - {end_time}')
-    print(f'Expected result\n{target_output}\ngot\n{final_results}\n\n')
+    # print(f'Expected result\n{target_output}\ngot\n{final_results}\n\n')
 
-    # assert target_output == final_results, time_range
+    assert target_output == final_results, time_range, f'Expected result\n{target_output}\ngot\n{final_results}\n\n'
 
     return jsonify(final_results)
 

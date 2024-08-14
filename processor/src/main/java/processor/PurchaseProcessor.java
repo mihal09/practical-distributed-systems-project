@@ -65,9 +65,6 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
 
                         // System.out.println("Saving profile:" + key.toString() + ", " + count + ", " + sum);
 
-                        if(key.toString().equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
-                            System.out.println("RESETTING profile:" + key.toString() + ", " + count + ", " + sum);
-                        }
                     }
                 }
                 database.batchUpdate(profiles);
@@ -98,10 +95,6 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
             long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
             List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
-            // if (brand_id.equals("Round_Hill_Furniture") && categoryId.equals("Care_Products")){
-            //     System.out.println("Keys: " + keys);
-            // }
-
             // System.out.println("Keys: " + keys);
 
             for (String aggKey : keys) {
@@ -116,9 +109,9 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     
                     Long sanityNewCount = countStore.get(aggKey);
 
-                    if (aggKey.equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
-                        System.out.println(formattedNow + "| [PROCESSING] Old count= " + oldCount + ", new_count= " + newCount + ", sanity_new_count= " + sanityNewCount);
-                    }
+                    // if (aggKey.equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
+                    //     System.out.println(formattedNow + "| [PROCESSING] Old count= " + oldCount + ", new_count= " + newCount + ", sanity_new_count= " + sanityNewCount);
+                    // }
 
                     Long oldSum = sumStore.get(aggKey);
                     long newSum = oldSum == null ? price : oldSum + price;
