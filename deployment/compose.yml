@@ -1,15 +1,80 @@
 services:
   front:
     image: server-py:latest
-    ports:
-      - "5000:5000"
+    dns:
+      - "127.0.0.11"
     deploy:
+      endpoint_mode: dnsrr
       mode: replicated
       replicas: 2
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - node.labels.front==true
+      networks:
+        - overlay
   haproxy:
     image: haproxy:latest
     ports:
       - "8080:8080"
+      - "9000:9000"
     volumes:
       - ./cfg/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    dns:
+      - "127.0.0.11"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.haproxy==true
+  aerospikedb:
+    image: aerospike/aerospike-server:latest
+    networks:
+    - overlay
+    deploy:
+      replicas: 5
+      endpoint_mode: dnsrr
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - node.labels.aerospike==true
+    labels:
+      com.aerospike.cluster: "db"
+    command: ["--config-file", "/run/secrets/aerospike.conf"]
+    secrets:
+      - source : aerospike_conf
+        target: aerospike.conf
+        mode: 0440
 
+  aerospike_meshworker:
+    image: aerospike/aerospike-tools:latest
+    dns:
+      - "127.0.0.11"
+    networks:
+    - overlay
+    depends_on:
+    - aerospike
+    entrypoint:
+    - /run/secrets/discovery
+    - "--servicename"
+    - aerospikedb
+    - "-i"
+    - "5"
+    - "-v"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.aerospike==true
+    secrets:
+    - source: discoveryfile
+      target: discovery
+      mode: 0750
+
+networks:
+    overlay:
+      driver: overlay
+      attachable: true
+secrets:
+  aerospike_conf:
+      file: ./cfg/aerospike/aerospike.conf
+  discoveryfile:
+      file: ./cfg/aerospike/discovery.py

@@ -1,0 +1,77 @@
+# Aerospike database configuration file for use with systemd.
+
+service {
+	proto-fd-max 15000
+	cluster-name mimuw
+}
+
+logging {
+    file /var/log/aerospike/aerospike.log {
+        context any info
+    }
+}
+
+network {
+	service {
+		address eth0
+		access-address {{ ansible_facts.eth0.ipv4.address }}
+		port 3000
+	}
+
+	heartbeat {
+		mode mesh
+		address eth0
+		port 3002
+
+    {% for svr in groups.aerospike %}
+    mesh-seed-address-port {{svr}} 3002
+    {% endfor %}
+
+		interval 150
+		timeout 10
+	}
+
+	fabric {
+		address eth0
+		port 3001
+	}
+
+	info {
+		address eth0
+		port 3003
+	}
+}
+
+mod-lua {
+    user-path /opt/aerospike/usr/udf/lua
+}
+
+namespace mimuw {
+	replication-factor 2
+	stop-writes-sys-memory-pct 92
+  nsup-period 15
+
+ # high-water-memory-pct 90
+ #  high-water-disk-pct 90
+
+	storage-engine memory {
+		filesize 10G
+		file /opt/aerospike/data/mimuw1.dat
+		file /opt/aerospike/data/mimuw2.dat
+		file /opt/aerospike/data/mimuw3.dat
+		file /opt/aerospike/data/mimuw4.dat
+	}
+
+	# To use file storage backing, comment out the line above and use the
+	# following lines instead.
+	# storage-engine device {
+    # filesize 6G
+	# 	file /opt/aerospike/data/mimuw1.dat
+	# 	file /opt/aerospike/data/mimuw2.dat
+	# 	file /opt/aerospike/data/mimuw3.dat
+	# 	file /opt/aerospike/data/mimuw4.dat
+	
+    #defrag-lwm-pct 90
+    #defrag-sleep 50
+	#}
+}

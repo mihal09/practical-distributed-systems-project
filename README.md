@@ -10,7 +10,7 @@
 2. Read data of user from database and apply time filtering
 
 3. Another component called "procesor" it uses kafka streams, it takes messages from kafka, and computes aggregate metrics and ocassionaly dumps into aerospike; \
-1 thread, At least once
+1 thread, At least once (in config processing.guarantee” to “exactly_once” )
 Every 15seconds dump aggregates to database \
 useful terms:
     - That can be achieved with a punctuator
@@ -34,3 +34,16 @@ Additional info:
 - Make aerospike persistent, best to use a few files
 
 - Docker/registry/swarm for CI/CD
+
+Commands:
+
+- Create/edelete kafka topic for events
+```bash
+/opt/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 -partitions 2 --replication-factor 2 --topic user_tags
+/opt/kafka/bin/kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic user_tags 
+```
+
+To clear data, one needs to shutdown the processor server and run:
+```bash
+bash clear_all.sh
+```
