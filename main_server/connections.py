@@ -9,6 +9,7 @@ AEROSPIKE_HOSTS = ["aerospikedb"]
 AEROSPIKE_PORT=3000
 
 KAFKA_BOOTSTRAP_SERVERS = 'broker-1:9092,broker-2:9092'
+KAFKA_VERSION = (3,3,2)
 
 
 class AerospikeClient:
@@ -87,6 +88,7 @@ class KafkaClient():
             linger_ms=linger_ms,
             key_serializer=serializer,
             value_serializer=serializer,
+            api_version=KAFKA_VERSION,
             *args, **kwargs
         )
 

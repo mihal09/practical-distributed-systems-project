@@ -9,12 +9,14 @@ services:
         max_replicas_per_node: 1
         constraints:
           - node.labels.front==true
+      restart_policy:
+        condition: on-failure
+        delay: 2s
+        max_attempts: 10
     dns:
       - "127.0.0.11"
     networks:
       - overlay
-    depends_on:
-      - aggregate_processor 
 
   aggregate_processor:
     image: st107vm101.rtb-lab.pl/aggregate_processor:latest
@@ -30,11 +32,6 @@ services:
       - "127.0.0.11"
     networks:
       - overlay
-    depends_on:
-      - aerospike_meshworker
-      - aerospikedb
-      - broker-1 
-      - broker-2 
 
   haproxy:
     image: haproxy:latest
@@ -51,8 +48,6 @@ services:
       - "127.0.0.11"
     networks:
       - overlay
-    depends_on:
-      - app
 
   aerospikedb:
     image: aerospike/aerospike-server:latest
@@ -79,8 +74,6 @@ services:
     image: aerospike/aerospike-tools:latest
     networks:
     - overlay
-    depends_on:
-    - aerospike
     entrypoint:
     - /run/secrets/discovery
     - "--servicename"
@@ -100,8 +93,6 @@ services:
     - source: discoveryfile
       target: discovery
       mode: 0750
-    depends_on:
-    - aerospikedb
 
   controller-1:
     image: apache/kafka:latest
@@ -116,6 +107,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
       KAFKA_TRANSCATION_STATE_REPLICATION_FACTOR: 2
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_NUM_NETWORK_THREADS: 3
     deploy:
       placement:
         constraints:
@@ -138,6 +132,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
       KAFKA_TRANSCATION_STATE_REPLICATION_FACTOR: 2
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_NUM_NETWORK_THREADS: 3
     deploy:
       placement:
         constraints:
@@ -157,8 +154,8 @@ services:
     environment:
       KAFKA_NODE_ID: 4
       KAFKA_PROCESS_ROLES: broker
-      KAFKA_LISTENERS: 'PLAINTEXT://:19092,PLAINTEXT_HOST://:9092'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker-1:19092,PLAINTEXT_HOST://localhost:29092'
+      KAFKA_LISTENERS: 'PLAINTEXT://:9092,PLAINTEXT_HOST://:29092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker-1:9092,PLAINTEXT_HOST://localhost:29092'
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -176,9 +173,6 @@ services:
     networks:
       - overlay
 
-    depends_on:
-      - controller-1
-      - controller-2
 
   broker-2:
     image: apache/kafka:latest
@@ -188,8 +182,8 @@ services:
     environment:
       KAFKA_NODE_ID: 5
       KAFKA_PROCESS_ROLES: broker
-      KAFKA_LISTENERS: 'PLAINTEXT://:19092,PLAINTEXT_HOST://:9092'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker-2:19092,PLAINTEXT_HOST://localhost:39092'
+      KAFKA_LISTENERS: 'PLAINTEXT://:9092,PLAINTEXT_HOST://:39092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker-2:9092,PLAINTEXT_HOST://localhost:39092'
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -198,6 +192,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
       KAFKA_TRANSCATION_STATE_REPLICATION_FACTOR: 2
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_NUM_NETWORK_THREADS: 3
     deploy:
       placement:
         constraints:
@@ -206,10 +203,6 @@ services:
       - "127.0.0.11"
     networks:
       - overlay
-
-    depends_on:
-      - controller-1
-      - controller-2
 
 networks:
     overlay:
