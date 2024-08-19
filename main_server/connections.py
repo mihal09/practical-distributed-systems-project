@@ -5,10 +5,10 @@ from kafka import KafkaProducer
 
 AEROSPIKE_NAMESPACE = 'mimuw'
 AEROSPIKE_SET_NAME = 'tags'
-AEROSPIKE_HOSTS = [f"st108vm1{x:02d}.rtb-lab.pl" for x in range(6, 10+1)]
+AEROSPIKE_HOSTS = ["aerospikedb"]
 AEROSPIKE_PORT=3000
 
-KAFKA_BOOTSTRAP_SERVERS = 'st108vm101.rtb-lab.pl:9092'
+KAFKA_BOOTSTRAP_SERVERS = 'broker-1:9092,broker-2:9092'
 
 
 class AerospikeClient:

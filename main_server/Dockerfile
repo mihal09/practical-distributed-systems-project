@@ -7,7 +7,7 @@ COPY ["requirements.txt", "/tmp/requirements.txt"]
 
 RUN ["pip3", "install", "-r", "/tmp/requirements.txt"]
 
-COPY ["src/", "/opt/app_server"]
+COPY ["main_server/", "/opt/app_server"]
 
 WORKDIR "/opt/app_server"
 
