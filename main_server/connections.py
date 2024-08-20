@@ -8,8 +8,8 @@ AEROSPIKE_SET_NAME = 'tags'
 AEROSPIKE_HOSTS = ["aerospikedb"]
 AEROSPIKE_PORT=3000
 
-KAFKA_BOOTSTRAP_SERVERS = 'broker-1:9092,broker-2:9092'
-KAFKA_VERSION = (3,3,2)
+KAFKA_BOOTSTRAP_SERVERS = 'broker-1:19092,broker-2:19092'
+KAFKA_VERSION = (3,8,0)
 
 
 class AerospikeClient:

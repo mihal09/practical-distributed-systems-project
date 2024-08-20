@@ -16,7 +16,7 @@ public class MyApp {
     public static void main(String[] args) {
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "purchases-aggregator");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "broker-1:9092,broker-2:9092"); // Kafka servers
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "broker-1:19092,broker-2:19092"); // Kafka servers
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 1);
@@ -35,6 +35,7 @@ public class MyApp {
                 Serdes.Long()
         );
 
+        System.out.println("Starting streams...");
         Topology builder = new Topology();
         builder.addSource("source", "user_tags")
                 .addProcessor("processor", PurchaseProcessor::new, "source")

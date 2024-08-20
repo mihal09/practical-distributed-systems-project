@@ -1,0 +1,13 @@
+processor/domain/Action.class
+processor/MyApp.class
+processor/domain/AggregatesQueryResult.class
+processor/MyApp$1.class
+processor/PurchaseProcessor.class
+processor/domain/Product.class
+processor/PurchaseProcessor$AggregatedMetrics.class
+processor/DatabaseMock.class
+processor/domain/Aggregate.class
+processor/DatabaseMock$UserProfile.class
+processor/domain/UserProfileResult.class
+processor/domain/Device.class
+processor/domain/UserTagEvent.class
