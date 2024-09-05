@@ -36,9 +36,11 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
 
     @Override
     public void init(ProcessorContext<String, String> context) {
+	System.out.println("Processor::init");
         objectMapper.registerModule(new JavaTimeModule());
 
         if (!isInitialized){
+	    System.out.println("Processor::init non-initialized");
             isInitialized = true;
             database = new DatabaseMock();
             countStore = context.getStateStore(COUNT_STORE_NAME);  // TODO: have only one store storing a class AggregatedMetrics

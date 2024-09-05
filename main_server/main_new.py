@@ -4,7 +4,6 @@ import json
 import time
 import logging
 from logging.handlers import RotatingFileHandler
-
 from classes import AggregatesQueryResult
 from connections import AerospikeClient, KafkaClient
 from utils import is_within_time_range, parse_timestamp, remove_nones, generate_query_keys
@@ -31,6 +30,7 @@ kafka_client = KafkaClient()
 @app.route('/user_tags', methods=['POST'])
 def add_user_tag():
     data = request.get_json()
+    #print(data)
     try:
         user_tag = request.get_json()
         cookie = user_tag.get('cookie')
@@ -142,6 +142,7 @@ def get_aggregates():
     # get results
     target_output = ""
     data = request.get_json()
+    print(data)
     if data:
         aggregates_result = AggregatesQueryResult(
             columns=data.get('columns', []),

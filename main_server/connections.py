@@ -8,7 +8,7 @@ AEROSPIKE_SET_NAME = 'tags'
 AEROSPIKE_HOSTS = ["aerospikedb"]
 AEROSPIKE_PORT=3000
 
-KAFKA_BOOTSTRAP_SERVERS = 'broker-1:9092,broker-2:9092'
+KAFKA_BOOTSTRAP_SERVERS = 'broker-1:19092,broker-2:19092'
 
 
 class AerospikeClient:
@@ -17,7 +17,7 @@ class AerospikeClient:
             'hosts': [ (host, port) for host in hosts ],
             'policies': {'read': {'total_timeout': 1000}},
         }
-        self.client = aerospike.client(config)
+        self.client = aerospike.client(config).connect()
         self.namespace = namespace
         self.set_name = set_name
 
@@ -80,16 +80,17 @@ def serializer(v):
 
 
 class KafkaClient():
-    def __init__(self, bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=5000, serialzier=serializer, *args, **kwargs):
+    def __init__(self, bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=50, serialzier=serializer, *args, **kwargs):
         self.producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers,
             compression_type=compression_type,
             linger_ms=linger_ms,
             key_serializer=serializer,
             value_serializer=serializer,
+            api_version = (3,8,0),
             *args, **kwargs
         )
 
     def send(self, topic, key=None, value=None):
         self.producer.send(topic, key=key, value=value)
-        self.producer.flush()
+        #self.producer.flush()

@@ -3,7 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from typing import List, Optional, Annotated
 from pydantic import BaseModel
 from datetime import datetime
-
+from prometheus_client import make_asgi_app, Histogram
 from connections import AerospikeClient, KafkaClient
 from utils import is_within_time_range, generate_query_keys
 
@@ -36,18 +36,24 @@ class AggregatesResult(BaseModel):
 
 
 app = FastAPI()
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+ha = Histogram('aerospike_request_latency_seconds', 'Aerospike put latency')
+hk = Histogram('kafka_request_latency_seconds', 'Kafka send latency')
+
 aerospike_client = AerospikeClient()
 kafka_client = KafkaClient()
 
 async def write_aero_kafka(key, tags, serialized_tag):
     # Send to kafka topic
     aerospike_client.push_key_value(key=key, value=tags)
-    #kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
+    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
 
 @app.post('/user_tags', status_code = 204)
 #async def add_user_tag(user_tag : UserTag, background_tasks: BackgroundTasks):
-def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
+def add_user_tag(user_tag : UserTag):
     # Create keys based on cookie and action
     key = f'{user_tag.cookie}:{user_tag.action.lower()}'
 
@@ -62,11 +68,13 @@ def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
         tags.insert(0, serialized_tag)
         tags = tags[:200]
 
-    background_tasks.add_task(write_aero_kafka, key, tags, serialized_tag)
-    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
-#    aerospike_client.push_key_value(key=key, value=tags)
+#    background_tasks.add_task(write_aero_kafka, key, tags, serialized_tag)
+    with ha.time():
+        aerospike_client.push_key_value(key=key, value=tags)
 
     # Send to kafka topic
+    with hk.time():
+        kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
     return ''
 

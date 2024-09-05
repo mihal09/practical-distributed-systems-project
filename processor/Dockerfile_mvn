@@ -1,7 +1,4 @@
-FROM debian:bullseye-slim
-
-RUN apt-get update && \
-	apt-get install -y --no-install-recommends openjdk-11-jre-headless maven wget
+FROM maven:3.8.6-openjdk-11-slim
 
 WORKDIR "/opt/kafka"
 
@@ -15,7 +12,7 @@ COPY ["processor/", "/opt/processor"]
 
 WORKDIR "/opt/processor"
 
-RUN mvn clean package
+RUN ["mvn", "clean", "package"]
 
 ENTRYPOINT ["/bin/sh", "startup.sh"]
 

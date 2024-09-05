@@ -1,5 +1,8 @@
 flask
 aerospike
 kafka-python
-
+python-snappy
+fastapi[standard]
+gunicorn
+prometheus-client
 
