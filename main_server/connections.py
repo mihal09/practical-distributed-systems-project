@@ -2,6 +2,9 @@ import aerospike
 from aerospike import exception as ex
 import json
 from kafka import KafkaProducer
+from utils import parse_timestamp
+import bisect
+
 
 AEROSPIKE_NAMESPACE = 'mimuw'
 AEROSPIKE_SET_NAME = 'tags'
@@ -68,6 +71,9 @@ class AerospikeClient:
         if set_name is None:
             set_name = self.set_name
 
+        def key_func(x):
+            return -parse_timestamp(x['time']).timestamp()
+
         # Define write policy with optimistic locking
         write_policy = {
             'gen': aerospike.POLICY_GEN_EQ,
@@ -82,7 +88,11 @@ class AerospikeClient:
                 generation = metadata['gen']
 
                 values = record['value']
-                values.insert(0, value)
+                # values.insert(0, value)
+                # values.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
+                insert_index = bisect.bisect_right([key_func(v) for v in values], key_func(value))
+                values.insert(insert_index, value)
+                
                 values = values[:max_length]
 
                 self.client.put(aerospike_key, {'value': values}, meta={'gen': generation}, policy=write_policy)

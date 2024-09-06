@@ -47,7 +47,7 @@ async def write_aero_kafka(key, serialized_tag):
     aerospike_client.extend_list(key, serialized_tag, max_length=200, max_retries=3)
 
     # Send to kafka topic
-    #kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
+    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
 
 @app.post('/user_tags', status_code = 204)
@@ -61,7 +61,7 @@ def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
 
     background_tasks.add_task(write_aero_kafka, key, serialized_tag)
     # write_aero_kafka(key, serialized_tag)
-    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
+    # kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
     return ''
 
@@ -86,8 +86,8 @@ def get_user_profile(cookie : str,
     user_views = [x for x in user_views if is_within_time_range(x['time'], start_time, end_time)]
     user_buys = [x for x in user_buys if is_within_time_range(x['time'], start_time, end_time)]
 
-    user_views.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
-    user_buys.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
+    # user_views.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
+    # user_buys.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
 
     user_views = user_views[:limit]
     user_buys = user_buys[:limit]
