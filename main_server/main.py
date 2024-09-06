@@ -5,7 +5,11 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from connections import AerospikeClient, KafkaClient
-from utils import is_within_time_range, generate_query_keys
+from utils import parse_timestamp, is_within_time_range, generate_query_keys
+
+import aerospike
+from aerospike_helpers.operations import list_operations
+
 
 
 class ProductInfo(BaseModel):
@@ -39,9 +43,28 @@ app = FastAPI()
 aerospike_client = AerospikeClient()
 kafka_client = KafkaClient()
 
-async def write_aero_kafka(key, tags, serialized_tag):
+async def write_aero_kafka(key, serialized_tag):
+    operations = [
+        list_operations.list_insert('value', 0, serialized_tag),  # Insert at the beginning of the list
+        # list_operations.list_trim('value', 0, 299),  # Keep only the first 300 elements
+    ]
+
+    max_retries = 3
+    for _ in range(max_retries):
+        try:
+            # Execute the operations atomically
+            aerospike_client.operate(key=key, operations=operations)
+            break
+        except aerospike.exception.RecordNotFound:
+            try:
+                # Try to create the record with the initial tag
+                aerospike_client.push_key_value(key=key, value=[serialized_tag])
+                break  # If successful, exit the loop
+            except aerospike.exception.RecordExistsError:
+                # If another process created the record in the meantime, retry the operation
+                continue
+
     # Send to kafka topic
-    aerospike_client.push_key_value(key=key, value=tags)
     #kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
 
@@ -52,26 +75,13 @@ def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
     key = f'{user_tag.cookie}:{user_tag.action.lower()}'
 
     # Store user tag in Aerospike list and trim the list to the most recent 200 items
-
-    # Aerospike
-    tags = aerospike_client.read_key_value(key=key)
     serialized_tag = jsonable_encoder(user_tag)
-    if not tags:
-        tags = [serialized_tag]
-    else:
-        tags.insert(0, serialized_tag)
-        tags = tags[:200]
 
-    background_tasks.add_task(write_aero_kafka, key, tags, serialized_tag)
-    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
-#    aerospike_client.push_key_value(key=key, value=tags)
-
-    # Send to kafka topic
+    background_tasks.add_task(write_aero_kafka, key, serialized_tag)
+    # kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
     return ''
 
-async def read_aero(key):
-    return aerospike_client.read_key_value(key=key, default_factory=list)
 
 @app.post('/user_profiles/{cookie}', status_code = 200)
 def get_user_profile(cookie : str,
@@ -90,8 +100,14 @@ def get_user_profile(cookie : str,
     user_buys = aerospike_client.read_key_value(key=buys_key, default_factory=list)
 
     # Convert JSON strings back to dictionaries
-    user_views = [x for x in user_views if is_within_time_range(x['time'], start_time, end_time)][:limit]
-    user_buys = [x for x in user_buys if is_within_time_range(x['time'], start_time, end_time)][:limit]
+    user_views = [x for x in user_views if is_within_time_range(x['time'], start_time, end_time)]
+    user_buys = [x for x in user_buys if is_within_time_range(x['time'], start_time, end_time)]
+
+    user_views.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
+    user_buys.sort(key=lambda x: parse_timestamp(x['time']), reverse=True)
+
+    user_views = user_views[:limit]
+    user_buys = user_buys[:limit]
 
 
     # Return user profile data
@@ -101,8 +117,16 @@ def get_user_profile(cookie : str,
         'buys': user_buys
     }
 
+    # target_json = expected_result.model_dump(mode='json')
+    # if response['views'] != target_json['views']:
+    #     print(f"Expected len: {len(target_json['views'])}, got {len(response['views'])}")
+    #     print(f"Expected result:")
+    #     for x in target_json['views']:
+    #         print(x)
+    #     print("\ngot\n")
+    #     for x in response['views']:
+    #         print(x)
 
-    # assert response == expected_result, f"Expected result: {expected_result}\ngot\n{response}\n\n"
 
     #return jsonable_encoder(response)
     return response

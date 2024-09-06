@@ -17,6 +17,7 @@ class AerospikeClient:
             'hosts': [ (host, port) for host in hosts ],
             'policies': {'read': {'total_timeout': 1000}},
         }
+        print(f"[AEROSPIKE] {AEROSPIKE_HOSTS},{AEROSPIKE_PORT}")
         self.client = aerospike.client(config).connect()
         self.namespace = namespace
         self.set_name = set_name
@@ -28,13 +29,9 @@ class AerospikeClient:
         if set_name is None:
             set_name = self.set_name
 
-        try:
-            aerospike_key = (namespace, set_name, key)
-            
-            self.client.put(aerospike_key, {'value': value})
-            # print(f"Successfully written: {key} -> {value}")
-        except Exception as e:
-            print(f"Error: {e}")
+        aerospike_key = (namespace, set_name, key)
+        self.client.put(aerospike_key, {'value': value})
+
 
     def read_key_value(self, key, namespace=None, set_name=None, default_factory=None):
         if namespace is None:
@@ -55,6 +52,15 @@ class AerospikeClient:
             if default_factory:
                 return default_factory()
             return None
+
+    def operate(self, key, operations, namespace=None, set_name=None):
+        if namespace is None:
+            namespace = self.namespace
+        if set_name is None:
+            set_name = self.set_name
+
+        aerospike_key = (namespace, set_name, key)
+        self.client.operate(aerospike_key, operations)
 
     def clear_setname(self, namespace=None, set_name=None):
         if namespace is None:
@@ -80,14 +86,18 @@ def serializer(v):
 
 
 class KafkaClient():
-    def __init__(self, bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=50, serialzier=serializer, *args, **kwargs):
+    @staticmethod
+    def serializer(v):
+        return json.dumps(v).encode('utf-8')
+    def __init__(self, bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, compression_type="snappy", linger_ms=500, serialzier=serializer, *args, **kwargs):
         self.producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers,
             compression_type=compression_type,
             linger_ms=linger_ms,
-            key_serializer=serializer,
-            value_serializer=serializer,
+            key_serializer=KafkaClient.serializer,
+            value_serializer=KafkaClient.serializer,
             api_version = (3,8,0),
+            acks=1,
             *args, **kwargs
         )
 
