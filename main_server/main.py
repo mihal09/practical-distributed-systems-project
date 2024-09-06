@@ -78,7 +78,7 @@ def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
     serialized_tag = jsonable_encoder(user_tag)
 
     background_tasks.add_task(write_aero_kafka, key, serialized_tag)
-    # kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
+    kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
     return ''
 
