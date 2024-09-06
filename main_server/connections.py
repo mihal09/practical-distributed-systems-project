@@ -62,6 +62,46 @@ class AerospikeClient:
         aerospike_key = (namespace, set_name, key)
         self.client.operate(aerospike_key, operations)
 
+    def extend_list(self, key, value, max_length=200, max_retries=3, namespace=None, set_name=None):
+        if namespace is None:
+            namespace = self.namespace
+        if set_name is None:
+            set_name = self.set_name
+
+        # Define write policy with optimistic locking
+        write_policy = {
+            'gen': aerospike.POLICY_GEN_EQ,
+            'exists': aerospike.POLICY_EXISTS_CREATE_OR_REPLACE,
+            'timeout': 100
+        }
+        aerospike_key = (namespace, set_name, key)
+
+        for _ in range(max_retries):
+            try:
+                _, metadata, record = self.client.get(aerospike_key)
+                generation = metadata['gen']
+
+                values = record['value']
+                values.insert(0, value)
+                values = values[:max_length]
+
+                self.client.put(aerospike_key, {'value': values}, meta={'gen': generation}, policy=write_policy)
+                break
+
+            except aerospike.exception.RecordNotFound:
+                try:
+                    # Try to create the record with the initial tag
+                    self.client.put(aerospike_key, {'value': [value]}, policy=write_policy)
+                    break  # If successful, exit the loop
+                except aerospike.exception.RecordExistsError:
+                    # If another process created the record in the meantime, retry the operation
+                    continue
+
+            except aerospike.exception.RecordGenerationError:
+                # If the record generation has changed, another process has modified the record
+                continue
+
+
     def clear_setname(self, namespace=None, set_name=None):
         if namespace is None:
             namespace = self.namespace

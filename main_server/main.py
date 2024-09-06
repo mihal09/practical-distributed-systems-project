@@ -44,25 +44,7 @@ aerospike_client = AerospikeClient()
 kafka_client = KafkaClient()
 
 async def write_aero_kafka(key, serialized_tag):
-    operations = [
-        list_operations.list_insert('value', 0, serialized_tag),  # Insert at the beginning of the list
-        # list_operations.list_trim('value', 0, 299),  # Keep only the first 300 elements
-    ]
-
-    max_retries = 3
-    for _ in range(max_retries):
-        try:
-            # Execute the operations atomically
-            aerospike_client.operate(key=key, operations=operations)
-            break
-        except aerospike.exception.RecordNotFound:
-            try:
-                # Try to create the record with the initial tag
-                aerospike_client.push_key_value(key=key, value=[serialized_tag])
-                break  # If successful, exit the loop
-            except aerospike.exception.RecordExistsError:
-                # If another process created the record in the meantime, retry the operation
-                continue
+    aerospike_client.extend_list(key, serialized_tag, max_length=200, max_retries=3)
 
     # Send to kafka topic
     #kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
@@ -78,6 +60,7 @@ def add_user_tag(user_tag : UserTag, background_tasks : BackgroundTasks):
     serialized_tag = jsonable_encoder(user_tag)
 
     background_tasks.add_task(write_aero_kafka, key, serialized_tag)
+    # write_aero_kafka(key, serialized_tag)
     kafka_client.send(topic="user_tags", key=key, value=serialized_tag)
 
     return ''
