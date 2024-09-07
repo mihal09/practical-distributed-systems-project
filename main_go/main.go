@@ -3,16 +3,18 @@ package main
 import (
 	"encoding/json"
 	aero "github.com/aerospike/aerospike-client-go/v7"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
-    "strconv"
 	"time"
 )
 
 var aerospike_client *aero.Client
+var kafka_producer *kafka.Producer
 
 type UserTag struct {
 	Time         string      `json:"time"`
@@ -37,11 +39,17 @@ type UserProfileResult struct {
 	Buys   []UserTag `json:"buys"`
 }
 
+type AggregatesResult struct {
+	Columns []string   `json:"columns"`
+	Rows    [][]string `json:"rows"`
+}
+
 var (
-	host          = "aerospikedb"
-	port          = 3000
-	namespace     = "mimuw"
-	set           = "tags"
+	host        = "aerospikedb"
+	port        = 3000
+	namespace   = "mimuw"
+	set         = "tags"
+	kafka_topic = "user_tags"
 )
 
 func main() {
@@ -49,9 +57,18 @@ func main() {
 
 	var err aero.Error
 	aerospike_client, err = aero.NewClient("aerospikedb", 3000)
-
 	if err != nil {
 		panic(err)
+	}
+
+	var ok error
+	kafka_producer, ok = kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": "broker-1:19092,broker-2:19092",
+		"linger.ms":         5000,
+		"compression.type":  "snappy",
+	})
+	if ok != nil {
+		panic(ok)
 	}
 
 	r.Route("/user_tags", func(r chi.Router) {
@@ -81,7 +98,6 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy.RecordExistsAction = aero.REPLACE
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
 
-
 	for {
 		var write_err aero.Error
 
@@ -98,27 +114,29 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 			slices.SortFunc(updated_records, compare_func)
 		}
 
-        write_err = aerospike_client.Put(write_policy, key, map[string]interface{}{"value": updated_records[:min(len(updated_records), 200)]})
+		write_err = aerospike_client.Put(write_policy, key, map[string]interface{}{"value": updated_records[:min(len(updated_records), 200)]})
 
 		if write_err == nil {
-            break
-		} 
+			break
+		}
 	}
+
+	kafka_producer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
+		Key:            []byte(key_string),
+		Value:          body_bytes}, nil)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func getUserProfiles(w http.ResponseWriter, r *http.Request) {
-	time_range := strings.Split(r.URL.Query().Get("time_range"), "_")
-	start_range, _ := time.Parse("2006-01-02T15:04:05.000", time_range[0])
-	end_range, _ := time.Parse("2006-01-02T15:04:05.000", time_range[1])
-
+	start_range, end_range := parse_timerange(r.URL.Query().Get("time_range"), "2006-01-02T15:04:05.000")
 	cookie := chi.URLParam(r, "cookie")
-    limit := 200
-    limit_str := chi.URLParam(r, "limit")
-    if limit_str != "" {
-        limit, _ = strconv.Atoi(limit_str)
-    }
-
+	limit := 200
+	limit_str := chi.URLParam(r, "limit")
+	if limit_str != "" {
+		limit, _ = strconv.Atoi(limit_str)
+	}
 
 	views_key, _ := aero.NewKey(namespace, set, cookie+":view")
 	buys_key, _ := aero.NewKey(namespace, set, cookie+":buy")
@@ -138,7 +156,7 @@ func getUserProfiles(w http.ResponseWriter, r *http.Request) {
 		send_views = make([]UserTag, 0, len(views))
 		for _, v := range views {
 			json.Unmarshal(v, &user_tag)
-            user_time := parse_timestamp(user_tag.Time)
+			user_time := parse_timestamp(user_tag.Time)
 
 			if user_time.Compare(start_range) >= 0 && user_time.Compare(end_range) < 0 {
 				send_views = append(send_views, user_tag)
@@ -160,7 +178,7 @@ func getUserProfiles(w http.ResponseWriter, r *http.Request) {
 
 		for _, v := range buys {
 			json.Unmarshal(v, &user_tag)
-            user_time := parse_timestamp(user_tag.Time)
+			user_time := parse_timestamp(user_tag.Time)
 			if user_time.Compare(start_range) >= 0 && user_time.Compare(end_range) < 0 {
 				send_buys = append(send_buys, user_tag)
 			}
@@ -168,11 +186,10 @@ func getUserProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-    send_views = send_views[:min(len(send_views), limit)]
-    send_buys = send_buys[:min(len(send_buys), limit)]
+	send_views = send_views[:min(len(send_views), limit)]
+	send_buys = send_buys[:min(len(send_buys), limit)]
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	send_bytes, _ := json.Marshal(UserProfileResult{Cookie: cookie, Views: send_views, Buys: send_buys})
 	w.Write(send_bytes)
 
@@ -184,14 +201,76 @@ func aggregatesMock(w http.ResponseWriter, r *http.Request) {
 	w.Write(body_bytes)
 }
 
+func aggregateUserActions(w http.ResponseWriter, r *http.Request) {
+	time_range := r.URL.Query().Get("time_range")
+	action := r.URL.Query().Get("action")
+	aggregates := r.URL.Query()["aggregates"]
+	origin := r.URL.Query().Get("origin")
+	brand_id := r.URL.Query().Get("brand_id")
+	category_id := r.URL.Query().Get("category_id")
+
+	keys := generate_query_keys(time_range, action, origin, brand_id, category_id)
+	rows := [][]string{}
+
+	for _, key := range keys {
+		as_key, _ := aero.NewKey(namespace, "aggregates", key)
+		record, _ := aerospike_client.Get(aero.NewPolicy(), as_key)
+        i, _ := strconv.ParseInt(strings.Split(key, "|")[0], 10, 64)
+        timestamp := time.Unix(i, 0).Format("2006-01-02T15:04:05")
+        row := []string{}
+        for _, row_val := range []string{timestamp, action, origin, brand_id, category_id} {
+            if row_val != "" {
+                row = append(row, row_val)
+            }
+        }
+
+		if record != nil {
+			for _, aggregate_val := range aggregates {
+				row = append(row, strconv.Itoa(record.Bins[strings.ToLower(aggregate_val)].(int)))
+			}
+		} else {
+            for range aggregates {
+                row = append(row, "0")
+            }
+        }
+        rows = append(rows, row)
+        
+	}
+
+	cols := []string{"1m_bucket", "action"}
+
+
+    if origin != "" {
+        cols = append(cols, "origin")
+    }
+    if brand_id != "" {
+        cols = append(cols, "brand_id")
+    }
+    if category_id != "" {
+        cols = append(cols, "category_id")
+    }
+
+
+	for _, agg_val := range aggregates {
+		if agg_val != "" {
+			cols = append(cols, strings.ToLower(agg_val))
+		}
+	}
+
+	result_bytes, _ := json.Marshal(AggregatesResult{Columns: cols, Rows: rows})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(result_bytes)
+}
+
 func compare_func(a, b []byte) int {
 	user_tag_a := UserTag{}
 	user_tag_b := UserTag{}
 	json.Unmarshal(a, &user_tag_a)
 	json.Unmarshal(b, &user_tag_b)
 
-    time_a := parse_timestamp(user_tag_a.Time)
-    time_b := parse_timestamp(user_tag_b.Time)
+	time_a := parse_timestamp(user_tag_a.Time)
+	time_b := parse_timestamp(user_tag_b.Time)
 
 	return -time_a.Compare(time_b)
 
@@ -205,14 +284,33 @@ func parse_records(records interface{}, output_records [][]byte) [][]byte {
 			}
 		}
 	}
-    return output_records
+	return output_records
 }
 
 func parse_timestamp(timestamp string) time.Time {
 	ret_time, err := time.Parse("2006-01-02T15:04:05.000Z", timestamp)
-    if err != nil {
+	if err != nil {
 		ret_time, _ = time.Parse("2006-01-02T15:04:05Z", timestamp)
-    }
+	}
 
-    return ret_time
+	return ret_time
+}
+
+func parse_timerange(time_range string, layout string) (time.Time, time.Time) {
+	ranges := strings.Split(time_range, "_")
+	start_range, _ := time.Parse(layout, ranges[0])
+	end_range, _ := time.Parse(layout, ranges[1])
+	return start_range, end_range
+}
+
+func generate_query_keys(time_range, action, origin, brand_id, category_id string) []string {
+	time_cursor, end_time := parse_timerange(time_range, "2006-01-02T15:04:05")
+	keys := []string{}
+
+	for ; time_cursor.Before(end_time); time_cursor = time_cursor.Add(time.Minute) {
+		key := strconv.FormatInt(time_cursor.Unix(), 10) + "|" + action + "|" + origin + "|" + brand_id + "|" + category_id
+		keys = append(keys, key)
+	}
+
+	return keys
 }

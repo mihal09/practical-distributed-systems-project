@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	github.com/aerospike/aerospike-client-go/v7 v7.6.1
+	github.com/confluentinc/confluent-kafka-go/v2 v2.5.3
 	github.com/go-chi/chi/v5 v5.1.0
 )
 
