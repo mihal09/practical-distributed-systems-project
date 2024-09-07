@@ -80,7 +80,7 @@ func main() {
 	})
 
 	r.Route("/aggregates", func(r chi.Router) {
-		r.Post("/", aggregatesMock)
+		r.Post("/", aggregateUserActions)
 	})
 
 	http.ListenAndServe("0.0.0.0:5000", r)
