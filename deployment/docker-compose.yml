@@ -8,7 +8,7 @@ services:
               max_attempts: 10
       endpoint_mode: dnsrr
       mode: replicated
-      replicas: 3
+      replicas: 2
       placement:
         max_replicas_per_node: 1
         constraints:
@@ -52,7 +52,7 @@ services:
   aerospikedb:
     image: aerospike/aerospike-server:latest
     deploy:
-      replicas: 4
+      replicas: 5
       endpoint_mode: dnsrr
       placement:
         max_replicas_per_node: 1
@@ -60,6 +60,10 @@ services:
           - node.labels.aerospike==true
     labels:
       com.aerospike.cluster: "db"
+    volumes:
+      - type: bind
+        source: /home/st107/aerospike_data
+        target: /opt/aerospike/data
     command: ["--config-file", "/run/secrets/aerospike.conf"]
     dns:
       - "127.0.0.11"
@@ -207,9 +211,6 @@ networks:
     overlay:
       driver: overlay
       attachable: true
-      ipam:
-              config:
-                      - subnet: 192.168.1.1/16
                 
 secrets:
   aerospike_conf:
