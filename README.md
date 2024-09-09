@@ -1,49 +1,32 @@
 # practical-distributed-systems-project
 
+## Deployment
 
-1. 
-    a) Append tags to aerospike database: check if cookie is in database, clip old when adding
-; optimistic locking needed: Write policy expect_gen_equal
-
-    b) And publish event tag to kafka
-
-2. Read data of user from database and apply time filtering
-
-3. Another component called "procesor" it uses kafka streams, it takes messages from kafka, and computes aggregate metrics and ocassionaly dumps into aerospike; \
-1 thread, At least once (in config processing.guarantee” to “exactly_once” )
-Every 15seconds dump aggregates to database \
-useful terms:
-    - That can be achieved with a punctuator
-    - Batch operations in aerospike
-    - Atomic counters
-    - Remember about compression of json in databases and kafka, ( in kafka config compression type snappy  and linger_ms_config 5s)
-
-
-Additional info:
-- Machines:
-    - Kafka 2
-    - Aerospike 5
-    - Haproxy 1 (shared with front)
-    - Front 2
-    - Procesor 1/2
-
-- Kafka replication factor 2
-- 2 partitions minimum
-- Add  24h retention
-
-- Make aerospike persistent, best to use a few files
-
-- Docker/registry/swarm for CI/CD
-
-Commands:
-
-- Create/edelete kafka topic for events
-```bash
-/opt/kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 -partitions 2 --replication-factor 2 --topic user_tags
-/opt/kafka/bin/kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic user_tags 
+1.Build docker images
+```sh
+ bash build-aggregate-processor.sh
+ bash build-app-server.sh 
 ```
 
-To clear data, one needs to shutdown the processor server and run:
-```bash
-bash clear_all.sh
+2. Add labels for specific machines:
+```sh
+sudo docker node update --label-add '{service_name}=true' stxxvm1xx
+```
+
+We used:
+- haproxy: 101
+- front: 101-13
+- aerospike: 103-107
+- kafka-1: 108
+- kafka-2: 109
+- processor: 110
+
+3. Add persistent storage directories:
+```sh
+for i in {3..7}; do sshpass -p "hwmzg9zt" ssh -o StrictHostKeyChecking=no "st108vm10${i}.rtb-lab.pl" "mkdir -p /home/st108/aerospike_data"; done
+```
+
+4. Deploy using docker stack:
+```sh
+sudo docker stack deploy -c deployment/docker-compose.yml test
 ```
