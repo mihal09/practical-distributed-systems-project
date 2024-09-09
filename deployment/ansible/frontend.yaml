@@ -1,0 +1,59 @@
+- name: Deploy HAProxy and API services in Docker Swarm
+  hosts: swarm_manager
+  remote_user: root
+  vars:
+    overlay_network_name: overlay
+    haproxy_service_name: haproxy
+    haproxy_image: haproxy:latest
+    haproxy_config_src: ../cfg/haproxy.cfg
+    haproxy_config_name: haproxy-config
+    haproxy_published_port: 8080
+    api_server_published_port: 5000
+    api_service_name: api-server
+    api_image: api-server:latest
+    api_replicas: 2
+
+
+  tasks:
+    - name: Create overlay network
+      become: true
+      become_user: root
+      docker_network:
+        name: "{{ overlay_network_name}}"
+        driver: overlay
+        state: present
+
+    - name: Create HAProxy config in Docker Swarm
+      become: true
+      become_user: root
+      command: docker config create {{ haproxy_config_name }} {{ haproxy_config_src }}
+      args:
+        creates: /var/lib/docker/swarm/configs/{{ haproxy_config_name }}
+
+    - name: Deploy HAProxy service 
+      become: true
+      become_user: root
+      docker_service:
+        name: "{{ haproxy_service_name }}"
+        image: "{{ haproxy_image }}"
+        networks:
+          - "{{ overlay_network_name }}"
+        publish:
+          - "{{ haproxy_published_port }}:{{ api_server_published_port }}"
+        configs:
+          - source: "{{ haproxy_config_name }}"
+            target: /usr/local/etc/haproxy/haproxy.cfg
+        state: present
+    - name: Deploy API backend service
+      become: true
+      become_user: root
+      docker_swarm_service:
+        name: "{{ api_service_name }}"
+        image: "{{ api_image }}"
+        replicas: "{{ api_replicas }}"
+        placement:
+          replicas_max_per_node: 1
+        networks:
+          - "{{ overlay_network_name }}"
+        state: present 
+
