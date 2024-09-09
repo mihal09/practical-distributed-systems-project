@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 
 public class DatabaseMock {
@@ -26,6 +27,7 @@ public class DatabaseMock {
     private static final String AEROSPIKE_SET_NAME = "aggregates";
     private static final String AEROSPIKE_HOST = "aerospikedb";
     private static final int AEROSPIKE_PORT = 3000;
+    private static final long RETENTION_PERIOD_SEC = 300;
 
     private final AerospikeClient client;
     private final Map<String, UserProfile> userProfileMap;
@@ -47,15 +49,11 @@ public class DatabaseMock {
         List<BatchRecord> batchWrites = new ArrayList<>();
 
         profiles.forEach(profile -> {
-            // System.out.println("Processing key" + profile.key.toString());
             UserProfile existingProfile = userProfileMap.getOrDefault(profile.key, new UserProfile(profile.key, 0L, 0L));
 
-            // System.out.println("Old values:" + existingProfile.count + ", " + existingProfile.sum);
             existingProfile.count += profile.count;
             existingProfile.sum += profile.sum;
             userProfileMap.put(profile.key, existingProfile);
-            // System.out.println("New values:" + existingProfile.count + ", " + existingProfile.sum);
-            // System.out.println();
 
             Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, profile.key);
             Bin countBin = new Bin("count", Value.get(existingProfile.count));
@@ -69,13 +67,32 @@ public class DatabaseMock {
             batchWrites.add(batchWrite);
          });
 
+        long maxTimestamp = profiles.stream()
+            .map(profile -> Long.parseLong(profile.key.split("\\|")[0]))
+            .max(Long::compare)
+            .orElse(0L);
+
+
         System.out.println("Updated number of records in Aerospike: " + profiles.size());
+        System.out.println("Current size of userProfileMap: " + userProfileMap.size());
+        System.out.println("Max timestamp: " + maxTimestamp);
 
         client.operate(batchPolicy, batchWrites);
 
-        // } catch (AerospikeException e) {
-        //     e.printStackTrace();
-        // }
+        clearOldEntries(maxTimestamp);
+    }
+
+    private void clearOldEntries(long currentTime) {
+        if (currentTime == 0) {
+            return;
+        }
+        long timeThreshold = currentTime - RETENTION_PERIOD_SEC;
+
+        userProfileMap.entrySet().removeIf(entry -> {
+            long userProfileTime = Long.parseLong(entry.getKey().split("\\|")[0]);
+            return userProfileTime < timeThreshold;
+        });
+
     }
 
     public static class UserProfile {

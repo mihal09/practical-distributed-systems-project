@@ -1,6 +1,6 @@
 services:
   app:
-    image: st107vm101.rtb-lab.pl/app-server:latest
+    image: st108vm101.rtb-lab.pl/app-server:latest
     deploy:
       restart_policy:
               condition: on-failure
@@ -19,7 +19,7 @@ services:
       - overlay
 
   aggregate_processor:
-    image: st107vm101.rtb-lab.pl/aggregate-processor:latest
+    image: st108vm101.rtb-lab.pl/aggregate-processor:latest
     deploy:
       endpoint_mode: dnsrr
       mode: replicated
@@ -50,7 +50,7 @@ services:
       - overlay
 
   aerospikedb:
-    image: aerospike/aerospike-server:latest
+    image: aerospike/aerospike-server-enterprise:latest
     deploy:
       replicas: 5
       endpoint_mode: dnsrr
@@ -62,7 +62,7 @@ services:
       com.aerospike.cluster: "db"
     volumes:
       - type: bind
-        source: /home/st107/aerospike_data
+        source: /home/st108/aerospike_data
         target: /opt/aerospike/data
     command: ["--config-file", "/run/secrets/aerospike.conf"]
     dns:
@@ -72,6 +72,9 @@ services:
     secrets:
       - source: aerospike_conf
         target: aerospike.conf
+        mode: 0440
+      - source: aerospike_key
+        target: aerospike-key.conf
         mode: 0440
 
   aerospike_meshworker:
@@ -149,11 +152,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:9093,2@controller-2:9093
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_NUM_IO_THREADS: 8
-      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 900000
+      KAFKA_NUM_IO_THREADS: 16
+      KAFKA_NUM_NETWORK_THREADS: 6
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
@@ -185,11 +189,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:9093,2@controller-2:9093
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_NUM_IO_THREADS: 8
-      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 900000
+      KAFKA_NUM_IO_THREADS: 16
+      KAFKA_NUM_NETWORK_THREADS: 6
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
@@ -215,5 +220,7 @@ networks:
 secrets:
   aerospike_conf:
       file: ./cfg/aerospike/aerospike.conf
+  aerospike_key:
+      file: ./cfg/aerospike/feature-key.conf
   discoveryfile:
       file: ./cfg/aerospike/discovery.py

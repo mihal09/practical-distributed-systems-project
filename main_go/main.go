@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"encoding/json"
 	aero "github.com/aerospike/aerospike-client-go/v7"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -71,6 +72,38 @@ func main() {
 		panic(ok)
 	}
 
+
+	go func() {
+		for e := range kafka_producer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				// The message delivery report, indicating success or
+				// permanent failure after retries have been exhausted.
+				// Application level retries won't help since the client
+				// is already configured to do that.
+				m := ev
+				if m.TopicPartition.Error != nil {
+					fmt.Printf("[DEBUG EVENT] Delivery failed: %v\n", m.TopicPartition.Error)
+				} else {
+					// fmt.Printf("[DEBUG EVENT] Delivered message to topic %s [%d] at offset %v\n",
+					// 	*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+				}
+			case kafka.Error:
+				// Generic client instance-level errors, such as
+				// broker connection failures, authentication issues, etc.
+				//
+				// These errors should generally be considered informational
+				// as the underlying client will automatically try to
+				// recover from any errors encountered, the application
+				// does not need to take action on them.
+				fmt.Printf("[DEBUG EVENT] Error: %v\n", ev)
+			default:
+				fmt.Printf("[DEBUG EVENT] Ignored event: %s\n", ev)
+			}
+		}
+	}()
+
+
 	r.Route("/user_tags", func(r chi.Router) {
 		r.Post("/", addUserTags)
 	})
@@ -97,6 +130,20 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy := aero.NewWritePolicy(0, 0)
 	write_policy.RecordExistsAction = aero.REPLACE
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
+	
+	err := kafka_producer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
+		Key:            []byte(key_string),
+		Value:          body_bytes}, nil)
+
+	if err != nil {
+		if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+			fmt.Printf("[DEBUG] Producer queue is full")
+		}
+		fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
+	}
+
+	counter := 0
 
 	for {
 		var write_err aero.Error
@@ -107,7 +154,6 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 		if records != nil {
 			write_policy.Generation = records.Generation
 			updated_records = parse_records(records.Bins["value"], updated_records)
-
 		}
 
 		if len(updated_records) >= 200 {
@@ -115,16 +161,13 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 		}
 
 		write_err = aerospike_client.Put(write_policy, key, map[string]interface{}{"value": updated_records[:min(len(updated_records), 200)]})
-
-		if write_err == nil {
+		counter++
+		if write_err != nil {
+			fmt.Printf("Iteration %d: Error writing records: %v\n", counter, write_err)
+		} else {
 			break
 		}
 	}
-
-	kafka_producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key_string),
-		Value:          body_bytes}, nil)
 
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -57,16 +57,13 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     while (iter.hasNext()) {
                         final KeyValue<String, Long> entry = iter.next();
                         String key = entry.key;
-                        countStore.put(key, null); // COMMENT THIS
+                        countStore.put(key, null);
 
                         Long count = entry.value;
                         Long sum = sumStore.get(key);
                         sumStore.put(key, null);
 
                         profiles.add(new DatabaseMock.UserProfile(key, count, sum));
-
-                        // System.out.println("Saving profile:" + key.toString() + ", " + count + ", " + sum);
-
                     }
                 }
                 database.batchUpdate(profiles);
@@ -76,11 +73,9 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
 
     @Override
     public void process(Record<String, String> record) {
-        // System.out.println("Processing record " + record.toString());
         UserTagEvent userTagEvent;
         try {
             userTagEvent = objectMapper.readValue(record.value(), UserTagEvent.class);
-            // System.out.println("Deserialized tag, product id: " + userTagEvent.getProductInfo().getProductId());
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Failed to deserialize record value: " + record.value());
@@ -97,7 +92,6 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
             long windowStart = eventTime.getEpochSecond() / 60 * 60; // 1-minute window
             List<String> keys = generateAggregationKeys(windowStart, action, origin, brand_id, categoryId);
 
-            // System.out.println("Keys: " + keys);
 
             for (String aggKey : keys) {
                 synchronized (this) {
@@ -108,12 +102,6 @@ public class PurchaseProcessor implements Processor<String, String, String, Stri
                     Long oldCount = countStore.get(aggKey);
                     long newCount = oldCount == null ? 1 : oldCount + 1;
                     countStore.put(aggKey, newCount);
-                    
-                    Long sanityNewCount = countStore.get(aggKey);
-
-                    // if (aggKey.equals("1646092860|VIEW||Round_Hill_Furniture|Care_Products")){
-                    //     System.out.println(formattedNow + "| [PROCESSING] Old count= " + oldCount + ", new_count= " + newCount + ", sanity_new_count= " + sanityNewCount);
-                    // }
 
                     Long oldSum = sumStore.get(aggKey);
                     long newSum = oldSum == null ? price : oldSum + price;
