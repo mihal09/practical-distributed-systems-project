@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	aerospikeMaxRetries := 5
 
 	var ok error
 	kafka_producer, ok = kafka.NewProducer(&kafka.ConfigMap{
@@ -144,7 +145,6 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	counter := 0
-
 	for {
 		var write_err aero.Error
 
@@ -164,6 +164,10 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 		counter++
 		if write_err != nil {
 			fmt.Printf("Iteration %d: Error writing records: %v\n", counter, write_err)
+			if counter > maxRetries {
+				fmt.Println("Max retries reached. Exiting loop.")
+				break
+			}
 		} else {
 			break
 		}
