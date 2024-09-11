@@ -4,6 +4,7 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -13,6 +14,9 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
+
+import java.util.Map;
+import java.util.HashMap;
 
 public class MyApp {
 
@@ -32,18 +36,22 @@ public class MyApp {
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 20000); // 20 seconds
         props.put(CommonClientConfigs.REBALANCE_TIMEOUT_MS_CONFIG, 300000); // 5 minutes
 
+        Map<String, String> changelogConfig = new HashMap<>();
+        changelogConfig.put(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(60 * 60 * 1000)); // 1 hour in milliseconds
 
         StoreBuilder<KeyValueStore<String, Long>> countStoreBuilder = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore("purchases-count"),
                 Serdes.String(),
                 Serdes.Long()
-        );
+        )
+        .withLoggingEnabled(changelogConfig);
 
         StoreBuilder<KeyValueStore<String, Long>> sumStoreBuilder = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore("purchases-sum"),
                 Serdes.String(),
                 Serdes.Long()
-        );
+        )
+        .withLoggingEnabled(changelogConfig);
 
 	System.out.println("Building topology...");
         Topology builder = new Topology();
