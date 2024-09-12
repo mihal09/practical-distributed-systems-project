@@ -60,7 +60,7 @@ public class DatabaseMock {
 
         aggregateUpdates.forEach((profileKey, userProfile) -> {
             String[] keyParts = profileKey.split("\\|", 4);
-            String fullKey = keyParts[0] + "|" + keyParts[1] "|" + keyParts[2];
+            String fullKey = keyParts[0] + "|" + keyParts[1] + "|" + keyParts[2];
             String subKey = keyParts.length > 3 ? keyParts[3] : "|";
 
             Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, fullKey);
