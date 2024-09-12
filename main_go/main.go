@@ -249,13 +249,20 @@ func aggregateUserActions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if record != nil {
-			if counts, ok := record.Bins[values[idx]].([]int); ok {
-				for _, aggregate_val := range aggregates {
-					if aggregate_val == "COUNT" {
-						row = append(row, strconv.Itoa(counts[0]))
-					} else {
-						row = append(row, strconv.Itoa(counts[1]))
+
+			if val_counts, ok := record.Bins[values[idx]]; ok {
+				if counts, ok := val_counts.([]interface{}); ok {
+					for _, aggregate_val := range aggregates {
+						if aggregate_val == "COUNT" {
+							row = append(row, strconv.Itoa(counts[0].(int)))
+						} else {
+							row = append(row, strconv.Itoa(counts[1].(int)))
+						}
 					}
+				}
+			} else {
+				for range aggregates {
+					row = append(row, "0")
 				}
 			}
 		} else {
