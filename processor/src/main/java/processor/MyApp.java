@@ -37,7 +37,10 @@ public class MyApp {
         props.put(CommonClientConfigs.REBALANCE_TIMEOUT_MS_CONFIG, 300000); // 5 minutes
 
         Map<String, String> changelogConfig = new HashMap<>();
-        changelogConfig.put(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(60 * 60 * 1000)); // 1 hour in milliseconds
+        changelogConfig.put(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(30 * 60 * 1000)); // 30 minutes in milliseconds
+        changelogConfig.put(TopicConfig.MIN_CLEANABLE_DIRTY_RATIO_CONFIG, String.valueOf(0.01));
+        changelogConfig.put(TopicConfig.SEGMENT_MS_CONFIG, String.valueOf(5 * 60 * 1000));
+        changelogConfig.put(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE);
 
         StoreBuilder<KeyValueStore<String, Long>> countStoreBuilder = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore("purchases-count"),

@@ -61,7 +61,7 @@ func main() {
 	clientPolicy.ConnectionQueueSize = 1024
 	clientPolicy.IdleTimeout = 15*time.Second
 	clientPolicy.Timeout = 5 * time.Second
-	clientPolicy.MinConnectionsPerNode = 100
+	clientPolicy.MinConnectionsPerNode = 400
 	aerospike_client, err = aero.NewClientWithPolicy(clientPolicy, "aerospikedb", 3000)
 	if err != nil {
 		panic(err)
