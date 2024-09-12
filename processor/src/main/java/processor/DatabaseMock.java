@@ -47,6 +47,7 @@ public class DatabaseMock {
         WritePolicy writePolicy = new WritePolicy();
         BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
         List<BatchRecord> batchWrites = new ArrayList<>();
+        Map<String, UserProfile> aggregateUpdates = new HashMap<>();
 
         profiles.forEach(profile -> {
             UserProfile existingProfile = userProfileMap.getOrDefault(profile.key, new UserProfile(profile.key, 0L, 0L));
@@ -54,18 +55,28 @@ public class DatabaseMock {
             existingProfile.count += profile.count;
             existingProfile.sum += profile.sum;
             userProfileMap.put(profile.key, existingProfile);
+            aggregateUpdates.put(profile.key, existingProfile);
+        });
 
-            Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, profile.key);
-            Bin countBin = new Bin("count", Value.get(existingProfile.count));
-            Bin sumPriceBin = new Bin("sum_price", Value.get(existingProfile.sum));
+        aggregateUpdates.forEach((profileKey, userProfile) -> {
+            String[] keyParts = profileKey.split("\\|", 4);
+            String fullKey = keyParts[0] + "|" + keyParts[1] "|" + keyParts[2];
+            String subKey = keyParts.length > 3 ? keyParts[3] : "|";
+
+            Key aerospikeKey = new Key(AEROSPIKE_NAMESPACE, AEROSPIKE_SET_NAME, fullKey);
+
+            List<Long> valuesList = new ArrayList<>();
+            valuesList.add(userProfile.count);
+            valuesList.add(userProfile.sum);
+            Bin valuesBin = new Bin(subKey, Value.get(valuesList));
+
             Operation[] operations = Operation.array(
-                Operation.put(countBin),
-                Operation.put(sumPriceBin)
-            );
-
+                Operation.put(valuesBin),
+            )
+            
             BatchWrite batchWrite = new BatchWrite(aerospikeKey, operations);
             batchWrites.add(batchWrite);
-         });
+        });
 
         long maxTimestamp = profiles.stream()
             .map(profile -> Long.parseLong(profile.key.split("\\|")[0]))
