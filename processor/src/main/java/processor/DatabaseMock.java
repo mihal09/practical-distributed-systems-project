@@ -71,8 +71,8 @@ public class DatabaseMock {
             Bin valuesBin = new Bin(subKey, Value.get(valuesList));
 
             Operation[] operations = Operation.array(
-                Operation.put(valuesBin),
-            )
+                Operation.put(valuesBin)
+            );
             
             BatchWrite batchWrite = new BatchWrite(aerospikeKey, operations);
             batchWrites.add(batchWrite);
