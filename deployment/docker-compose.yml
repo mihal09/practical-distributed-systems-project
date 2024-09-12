@@ -50,7 +50,7 @@ services:
       - overlay
 
   aerospikedb:
-    image: aerospike/aerospike-server-enterprise:latest
+    image: aerospike/aerospike-server:latest
     deploy:
       replicas: 5
       endpoint_mode: dnsrr
@@ -73,9 +73,9 @@ services:
       - source: aerospike_conf
         target: aerospike.conf
         mode: 0440
-      - source: aerospike_key
-        target: aerospike-key.conf
-        mode: 0440
+      # - source: aerospike_key
+      #   target: aerospike-key.conf
+      #   mode: 0440
 
   aerospike_meshworker:
     image: aerospike/aerospike-tools:latest
@@ -220,7 +220,7 @@ networks:
 secrets:
   aerospike_conf:
       file: ./cfg/aerospike/aerospike.conf
-  aerospike_key:
-      file: ./cfg/aerospike/feature-key.conf
+  # aerospike_key:
+  #     file: ./cfg/aerospike/feature-key.conf
   discoveryfile:
       file: ./cfg/aerospike/discovery.py

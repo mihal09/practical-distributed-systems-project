@@ -57,7 +57,12 @@ func main() {
 	r := chi.NewRouter()
 
 	var err aero.Error
-	aerospike_client, err = aero.NewClient("aerospikedb", 3000)
+	clientPolicy := aero.NewClientPolicy();
+	clientPolicy.ConnectionQueueSize = 1024
+	clientPolicy.IdleTimeout = 15*time.Second
+	clientPolicy.Timeout = 5 * time.Second
+	clientPolicy.MinConnectionsPerNode = 100
+	aerospike_client, err = aero.NewClientWithPolicy(clientPolicy, "aerospikedb", 3000)
 	if err != nil {
 		panic(err)
 	}
@@ -71,37 +76,6 @@ func main() {
 	if ok != nil {
 		panic(ok)
 	}
-
-
-	go func() {
-		for e := range kafka_producer.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				// The message delivery report, indicating success or
-				// permanent failure after retries have been exhausted.
-				// Application level retries won't help since the client
-				// is already configured to do that.
-				m := ev
-				if m.TopicPartition.Error != nil {
-					fmt.Printf("[DEBUG EVENT] Delivery failed: %v\n", m.TopicPartition.Error)
-				} else {
-					// fmt.Printf("[DEBUG EVENT] Delivered message to topic %s [%d] at offset %v\n",
-					// 	*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
-				}
-			case kafka.Error:
-				// Generic client instance-level errors, such as
-				// broker connection failures, authentication issues, etc.
-				//
-				// These errors should generally be considered informational
-				// as the underlying client will automatically try to
-				// recover from any errors encountered, the application
-				// does not need to take action on them.
-				fmt.Printf("[DEBUG EVENT] Error: %v\n", ev)
-			default:
-				fmt.Printf("[DEBUG EVENT] Ignored event: %s\n", ev)
-			}
-		}
-	}()
 
 
 	r.Route("/user_tags", func(r chi.Router) {
@@ -130,6 +104,7 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy := aero.NewWritePolicy(0, 0)
 	write_policy.RecordExistsAction = aero.REPLACE
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
+	write_policy.MaxRetries = 1
 	
 	err := kafka_producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
@@ -143,12 +118,15 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
 	}
 
-	aerospikeMaxRetries := 5
+	aerospikeMaxRetries := 3
 	counter := 0
 	for {
 		var write_err aero.Error
 
-		records, _ := aerospike_client.Get(aero.NewPolicy(), key)
+		read_policy := aero.NewPolicy()
+		read_policy.TotalTimeout = 100 * time.Millisecond
+		read_policy.SocketTimeout = 80 * time.Millisecond
+		records, _ := aerospike_client.Get(read_policy, key)
 		updated_records := [][]byte{body_bytes}
 
 		if records != nil {
