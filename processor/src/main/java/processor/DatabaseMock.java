@@ -6,6 +6,7 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Value;
 import com.aerospike.client.BatchWrite;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchResults;
 import com.aerospike.client.Record;
@@ -45,7 +46,9 @@ public class DatabaseMock {
     public void batchUpdate(List<UserProfile> profiles) {
         BatchPolicy batchPolicy = new BatchPolicy();
         WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.REPLACE;
         BatchWritePolicy batchWritePolicy = new BatchWritePolicy();
+        batchWritePolicy.recordExistsAction = RecordExistsAction.REPLACE;
         List<BatchRecord> batchWrites = new ArrayList<>();
         Map<String, UserProfile> aggregateUpdates = new HashMap<>();
 
@@ -74,7 +77,7 @@ public class DatabaseMock {
                 Operation.put(valuesBin)
             );
             
-            BatchWrite batchWrite = new BatchWrite(aerospikeKey, operations);
+            BatchWrite batchWrite = new BatchWrite(batchWritePolicy, aerospikeKey, operations);
             batchWrites.add(batchWrite);
         });
 
