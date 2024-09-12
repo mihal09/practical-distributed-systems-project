@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	aero "github.com/aerospike/aerospike-client-go/v7"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/go-chi/chi/v5"
@@ -57,9 +57,9 @@ func main() {
 	r := chi.NewRouter()
 
 	var err aero.Error
-	clientPolicy := aero.NewClientPolicy();
+	clientPolicy := aero.NewClientPolicy()
 	clientPolicy.ConnectionQueueSize = 1024
-	clientPolicy.IdleTimeout = 15*time.Second
+	clientPolicy.IdleTimeout = 15 * time.Second
 	clientPolicy.Timeout = 5 * time.Second
 	clientPolicy.MinConnectionsPerNode = 100
 	aerospike_client, err = aero.NewClientWithPolicy(clientPolicy, "aerospikedb", 3000)
@@ -76,7 +76,6 @@ func main() {
 	if ok != nil {
 		panic(ok)
 	}
-
 
 	r.Route("/user_tags", func(r chi.Router) {
 		r.Post("/", addUserTags)
@@ -105,7 +104,7 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy.RecordExistsAction = aero.REPLACE
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
 	write_policy.MaxRetries = 1
-	
+
 	err := kafka_producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
 		Key:            []byte(key_string),
@@ -234,47 +233,51 @@ func aggregateUserActions(w http.ResponseWriter, r *http.Request) {
 	brand_id := r.URL.Query().Get("brand_id")
 	category_id := r.URL.Query().Get("category_id")
 
-	keys := generate_query_keys(time_range, action, origin, brand_id, category_id)
+	keys, values := generate_query_key_values(time_range, action, origin, brand_id, category_id)
 	rows := [][]string{}
 
-	for _, key := range keys {
+	for idx, key := range keys {
 		as_key, _ := aero.NewKey(namespace, "aggregates", key)
-		record, _ := aerospike_client.Get(aero.NewPolicy(), as_key)
-        i, _ := strconv.ParseInt(strings.Split(key, "|")[0], 10, 64)
-        timestamp := time.Unix(i, 0).Format("2006-01-02T15:04:05")
-        row := []string{}
-        for _, row_val := range []string{timestamp, action, origin, brand_id, category_id} {
-            if row_val != "" {
-                row = append(row, row_val)
-            }
-        }
+		record, _ := aerospike_client.Get(aero.NewPolicy(), as_key, values[idx])
+		i, _ := strconv.ParseInt(strings.Split(key, "|")[0], 10, 64)
+		timestamp := time.Unix(i, 0).Format("2006-01-02T15:04:05")
+		row := []string{}
+		for _, row_val := range []string{timestamp, action, origin, brand_id, category_id} {
+			if row_val != "" {
+				row = append(row, row_val)
+			}
+		}
 
 		if record != nil {
-			for _, aggregate_val := range aggregates {
-				row = append(row, strconv.Itoa(record.Bins[strings.ToLower(aggregate_val)].(int)))
+			if counts, ok := record.Bins[values[idx]].([]int); ok {
+				for _, aggregate_val := range aggregates {
+					if aggregate_val == "COUNT" {
+						row = append(row, strconv.Itoa(counts[0]))
+					} else {
+						row = append(row, strconv.Itoa(counts[1]))
+					}
+				}
 			}
 		} else {
-            for range aggregates {
-                row = append(row, "0")
-            }
-        }
-        rows = append(rows, row)
-        
+			for range aggregates {
+				row = append(row, "0")
+			}
+		}
+		rows = append(rows, row)
+
 	}
 
 	cols := []string{"1m_bucket", "action"}
 
-
-    if origin != "" {
-        cols = append(cols, "origin")
-    }
-    if brand_id != "" {
-        cols = append(cols, "brand_id")
-    }
-    if category_id != "" {
-        cols = append(cols, "category_id")
-    }
-
+	if origin != "" {
+		cols = append(cols, "origin")
+	}
+	if brand_id != "" {
+		cols = append(cols, "brand_id")
+	}
+	if category_id != "" {
+		cols = append(cols, "category_id")
+	}
 
 	for _, agg_val := range aggregates {
 		if agg_val != "" {
@@ -338,4 +341,19 @@ func generate_query_keys(time_range, action, origin, brand_id, category_id strin
 	}
 
 	return keys
+}
+
+func generate_query_key_values(time_range, action, origin, brand_id, category_id string) ([]string, []string) {
+	time_cursor, end_time := parse_timerange(time_range, "2006-01-02T15:04:05")
+	keys := []string{}
+	values := []string{}
+
+	for ; time_cursor.Before(end_time); time_cursor = time_cursor.Add(time.Minute) {
+		key := strconv.FormatInt(time_cursor.Unix(), 10) + "|" + action + "|" + origin
+		value := brand_id + "|" + category_id
+		keys = append(keys, key)
+		values = append(values, value)
+	}
+
+	return keys, values
 }
