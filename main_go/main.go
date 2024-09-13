@@ -77,6 +77,23 @@ func main() {
 		panic(ok)
 	}
 
+	go func() {
+		for e := range kafka_producer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				m := ev
+				if m.TopicPartition.Error != nil {
+					fmt.Printf("[DEBUG EVENT] Delivery failed: %v\n", m.TopicPartition.Error)
+				} else {
+				}
+			case kafka.Error:
+				fmt.Printf("[DEBUG EVENT] Error: %v\n", ev)
+			default:
+				fmt.Printf("[DEBUG EVENT] Ignored event: %s\n", ev)
+			}
+		}
+	}()
+
 
 	r.Route("/user_tags", func(r chi.Router) {
 		r.Post("/", addUserTags)
