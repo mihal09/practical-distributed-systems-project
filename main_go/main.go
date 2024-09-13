@@ -123,16 +123,16 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
 	write_policy.MaxRetries = 1
 	
-		err := kafka_producer.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
-			Key:            []byte(key_string),
-			Value:          body_bytes}, nil)
+	err := kafka_producer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
+		Key:            []byte(key_string),
+		Value:          body_bytes}, nil)
 
-		if err != nil {
-			if err.(kafka.Error).Code() == kafka.ErrQueueFull {
-				fmt.Printf("[DEBUG] Producer queue is full")
-			}
-			fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
+	if err != nil {
+		if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+			fmt.Printf("[DEBUG] Producer queue is full")
+		}
+		fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
 	}
 
 	aerospikeMaxRetries := 3
