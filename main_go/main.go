@@ -77,6 +77,23 @@ func main() {
 		panic(ok)
 	}
 
+	go func() {
+		for e := range kafka_producer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				m := ev
+				if m.TopicPartition.Error != nil {
+					fmt.Printf("[DEBUG EVENT] Delivery failed: %v\n", m.TopicPartition.Error)
+				} else {
+				}
+			case kafka.Error:
+				fmt.Printf("[DEBUG EVENT] Error: %v\n", ev)
+			default:
+				fmt.Printf("[DEBUG EVENT] Ignored event: %s\n", ev)
+			}
+		}
+	}()
+
 
 	r.Route("/user_tags", func(r chi.Router) {
 		r.Post("/", addUserTags)
@@ -106,16 +123,16 @@ func addUserTags(w http.ResponseWriter, r *http.Request) {
 	write_policy.GenerationPolicy = aero.EXPECT_GEN_EQUAL
 	write_policy.MaxRetries = 1
 	
-	err := kafka_producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key_string),
-		Value:          body_bytes}, nil)
+		err := kafka_producer.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &kafka_topic, Partition: kafka.PartitionAny},
+			Key:            []byte(key_string),
+			Value:          body_bytes}, nil)
 
-	if err != nil {
-		if err.(kafka.Error).Code() == kafka.ErrQueueFull {
-			fmt.Printf("[DEBUG] Producer queue is full")
-		}
-		fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
+		if err != nil {
+			if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+				fmt.Printf("[DEBUG] Producer queue is full")
+			}
+			fmt.Printf("[DEBUG] Failed to produce message: %v\n", err)
 	}
 
 	aerospikeMaxRetries := 3
